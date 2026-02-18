@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:resqnow_admin/features/admin/domain/entities/admin_user_entity.dart';
 
 /// Admin User Model for data transfer
@@ -56,16 +57,39 @@ class AdminUserModel {
 
   /// Create from Firestore JSON
   factory AdminUserModel.fromJson(Map<String, dynamic> json) {
+    // createdAt and lastLogin can come as Firestore Timestamps, ints, or ISO strings
+    final dynamic createdVal = json['createdAt'];
+    DateTime createdAt;
+    if (createdVal is Timestamp) {
+      createdAt = createdVal.toDate();
+    } else if (createdVal is int) {
+      createdAt = DateTime.fromMillisecondsSinceEpoch(createdVal);
+    } else if (createdVal is String) {
+      createdAt = DateTime.parse(createdVal);
+    } else {
+      createdAt = DateTime.now();
+    }
+
+    final dynamic lastLoginVal = json['lastLogin'];
+    DateTime? lastLogin;
+    if (lastLoginVal != null) {
+      if (lastLoginVal is Timestamp) {
+        lastLogin = lastLoginVal.toDate();
+      } else if (lastLoginVal is int) {
+        lastLogin = DateTime.fromMillisecondsSinceEpoch(lastLoginVal);
+      } else if (lastLoginVal is String) {
+        lastLogin = DateTime.parse(lastLoginVal);
+      }
+    }
+
     return AdminUserModel(
       uid: json['uid'] as String,
       email: json['email'] as String,
       name: json['name'] as String,
       role: json['role'] as String? ?? 'user',
       accountStatus: json['accountStatus'] as String? ?? 'active',
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      lastLogin: json['lastLogin'] != null
-          ? DateTime.parse(json['lastLogin'] as String)
-          : null,
+      createdAt: createdAt,
+      lastLogin: lastLogin,
       profileImage: json['profileImage'] as String?,
       emailVerified: json['emailVerified'] as bool? ?? false,
     );
