@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:resqnow_admin/features/authentication/controllers/admin_auth_controller.dart';
+import 'package:resqnow_admin/features/admin/presentation/pages/blood_donor_management/blood_donor_management_page.dart';
+import 'package:resqnow_admin/features/admin/presentation/pages/user_management/user_management_page.dart';
+import 'package:resqnow_admin/features/admin/presentation/pages/category_management/category_management_page.dart';
+import 'package:resqnow_admin/features/admin/presentation/pages/emergency_numbers_management/emergency_numbers_management_page.dart';
+import 'package:resqnow_admin/features/admin/presentation/pages/resources_management/resources_management_page.dart';
+import 'package:resqnow_admin/features/admin/presentation/pages/conditions_management/conditions_management_page.dart';
+import 'package:resqnow_admin/features/admin/presentation/pages/home_config_management/home_config_management_page.dart';
 
 /// Admin Dashboard Home Page
 class AdminDashboardPage extends StatefulWidget {
@@ -59,6 +68,108 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         title: const Text('ResQnow Admin Dashboard'),
         elevation: 2,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          Consumer<AdminAuthController>(
+            builder: (context, authController, _) {
+              return PopupMenuButton<String>(
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
+                    value: 'profile',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.person,
+                          size: 20,
+                          color: Colors.grey[700],
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Logged In',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                authController.currentUser?.email ?? 'Admin',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    enabled: false,
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem<String>(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.logout,
+                          size: 20,
+                          color: Colors.red[600],
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Logout',
+                          style: TextStyle(
+                            color: Colors.red[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Confirm Logout'),
+                          content: const Text(
+                            'Are you sure you want to logout of the admin dashboard?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                authController.signOut();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+                              child: const Text(
+                                'Logout',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -142,12 +253,50 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   void _onMenuItemTap(int index) {
-    // TODO: Navigate to respective pages
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Navigate to ${_menuItems[index].label}'),
-        duration: const Duration(seconds: 2),
-      ),
+    Widget pageToNavigate;
+    
+    switch (index) {
+      case 0:
+        // Dashboard - refresh current page
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Refreshing dashboard...')),
+        );
+        return;
+      case 1:
+        // User Management
+        pageToNavigate = const UserManagementPage();
+        break;
+      case 2:
+        // Blood Donor Management
+        pageToNavigate = const BloodDonorManagementPage();
+        break;
+      case 3:
+        // Category Management
+        pageToNavigate = const CategoryManagementPage();
+        break;
+      case 4:
+        // Emergency Numbers Management
+        pageToNavigate = const EmergencyNumbersManagementPage();
+        break;
+      case 5:
+        // Resources Management
+        pageToNavigate = const ResourcesManagementPage();
+        break;
+      case 6:
+        // Conditions Management
+        pageToNavigate = const ConditionsManagementPage();
+        break;
+      case 7:
+        // Home Config Management
+        pageToNavigate = const HomeConfigManagementPage();
+        break;
+      default:
+        return;
+    }
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => pageToNavigate),
     );
   }
 }

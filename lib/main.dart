@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'core/constants/admin_routes.dart';
+import 'features/authentication/controllers/admin_auth_controller.dart';
+import 'features/authentication/pages/admin_shell.dart';
 import 'features/admin/presentation/pages/admin_dashboard_page.dart';
 import 'features/admin/presentation/pages/user_management/user_management_page.dart';
 import 'features/admin/presentation/pages/blood_donor_management/blood_donor_management_page.dart';
@@ -27,17 +30,21 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'ResQnow Admin Dashboard',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
+          seedColor: Colors.teal,
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
       ),
-      home: const AdminDashboardPage(),
+      home: // Provide AuthController globally
+          ChangeNotifierProvider(
+        create: (_) => AdminAuthController(),
+        child: const AdminShell(),
+      ),
       routes: _buildRoutes(),
     );
   }

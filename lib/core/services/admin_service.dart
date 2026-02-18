@@ -9,14 +9,52 @@ class AdminService {
   final FirebaseFirestore firestore;
   final FirebaseAuth auth;
 
+  // Firestore collection names (matching main app structure)
   static const String usersCollection = 'users';
-  static const String bloodDonorsCollection = 'blood_donors';
+  static const String donorsCollection = 'donors'; // matches main app
   static const String categoriesCollection = 'categories';
   static const String emergencyNumbersCollection = 'emergency_numbers';
   static const String resourcesCollection = 'resources';
   static const String conditionsCollection = 'conditions';
 
   AdminService({required this.firestore, required this.auth});
+
+  /// Verify current user is an admin
+  Future<bool> isCurrentUserAdmin() async {
+    try {
+      final user = auth.currentUser;
+      if (user == null) return false;
+
+      final userDoc = await firestore
+          .collection(usersCollection)
+          .doc(user.uid)
+          .get();
+
+      if (!userDoc.exists) return false;
+      
+      final role = userDoc.get('role') as String?;
+      return role == 'admin';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Get current user's role
+  Future<String?> getCurrentUserRole() async {
+    try {
+      final user = auth.currentUser;
+      if (user == null) return null;
+
+      final userDoc = await firestore
+          .collection(usersCollection)
+          .doc(user.uid)
+          .get();
+
+      return userDoc.get('role') as String?;
+    } catch (e) {
+      return null;
+    }
+  }
 
   /// ============ User Management ============
 
@@ -112,6 +150,15 @@ class AdminService {
     }
   }
 
+  /// Delete user
+  Future<void> deleteUser(String uid) async {
+    try {
+      await firestore.collection(usersCollection).doc(uid).delete();
+    } catch (e) {
+      throw Exception('Failed to delete user: $e');
+    }
+  }
+
   /// ============ Blood Donor Management ============
 
   /// Get all blood donors
@@ -120,7 +167,7 @@ class AdminService {
     DocumentSnapshot? startAfter,
   }) async {
     try {
-      Query query = firestore.collection(bloodDonorsCollection).limit(limit);
+      Query query = firestore.collection(donorsCollection).limit(limit);
 
       if (startAfter != null) {
         query = query.startAfterDocument(startAfter);
@@ -146,7 +193,7 @@ class AdminService {
   ) async {
     try {
       final snapshot = await firestore
-          .collection(bloodDonorsCollection)
+          .collection(donorsCollection)
           .where('bloodGroup', isEqualTo: bloodGroup)
           .get();
 
@@ -166,7 +213,7 @@ class AdminService {
     String town,
   ) async {
     try {
-      var query = firestore.collection(bloodDonorsCollection) as dynamic;
+      var query = firestore.collection(donorsCollection) as dynamic;
 
       if (district.isNotEmpty) {
         query = query.where('district', isEqualTo: district);
@@ -193,7 +240,7 @@ class AdminService {
   Future<BloodDonorModel?> getDonorByUid(String uid) async {
     try {
       final doc = await firestore
-          .collection(bloodDonorsCollection)
+          .collection(donorsCollection)
           .doc(uid)
           .get();
       if (!doc.exists) return null;
@@ -209,9 +256,44 @@ class AdminService {
   /// Update blood donor
   Future<void> updateBloodDonor(String uid, Map<String, dynamic> data) async {
     try {
-      await firestore.collection(bloodDonorsCollection).doc(uid).update(data);
+      await firestore.collection(donorsCollection).doc(uid).update(data);
     } catch (e) {
       throw Exception('Failed to update donor: $e');
+    }
+  }
+
+  /// Suspend blood donor
+  Future<void> suspendDonor(String uid, String reason) async {
+    try {
+      await firestore.collection(donorsCollection).doc(uid).update({
+        'isSuspended': true,
+        'suspensionReason': reason,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Failed to suspend donor: $e');
+    }
+  }
+
+  /// Reactivate blood donor
+  Future<void> reactivateDonor(String uid) async {
+    try {
+      await firestore.collection(donorsCollection).doc(uid).update({
+        'isSuspended': false,
+        'suspensionReason': null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Failed to reactivate donor: $e');
+    }
+  }
+
+  /// Delete blood donor
+  Future<void> deleteDonor(String uid) async {
+    try {
+      await firestore.collection(donorsCollection).doc(uid).delete();
+    } catch (e) {
+      throw Exception('Failed to delete donor: $e');
     }
   }
 
