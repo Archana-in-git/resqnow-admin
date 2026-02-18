@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:resqnow_admin/features/admin/domain/entities/blood_donor_entity.dart';
 
 /// Blood Donor Model for data transfer
@@ -71,26 +72,55 @@ class BloodDonorModel {
 
   /// Create from Firestore JSON
   factory BloodDonorModel.fromJson(Map<String, dynamic> json) {
+    // Helper function to convert Timestamp or String to DateTime
+    DateTime _parseDateTime(dynamic value) {
+      if (value == null) {
+        return DateTime.now();
+      } else if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String && value.isNotEmpty) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return DateTime.now();
+        }
+      } else if (value is int) {
+        // Handle unix timestamp in milliseconds or seconds
+        try {
+          if (value > 10000000000) {
+            // Likely milliseconds
+            return DateTime.fromMillisecondsSinceEpoch(value);
+          } else {
+            // Likely seconds
+            return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+          }
+        } catch (e) {
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
+    }
+
     return BloodDonorModel(
-      uid: json['uid'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
-      phone: json['phone'] as String,
-      bloodGroup: json['bloodGroup'] as String,
-      gender: json['gender'] as String,
-      age: json['age'] as int,
-      address: json['address'] as String,
-      town: json['town'] as String,
-      district: json['district'] as String,
-      pincode: json['pincode'] as String,
+      uid: json['uid'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      bloodGroup: json['bloodGroup'] as String? ?? 'O+',
+      gender: json['gender'] as String? ?? 'Not Specified',
+      age: json['age'] as int? ?? 0,
+      address: json['address'] as String? ?? '',
+      town: json['town'] as String? ?? '',
+      district: json['district'] as String? ?? '',
+      pincode: json['pincode'] as String? ?? '',
       isAvailable: json['isAvailable'] as bool? ?? true,
       medicalConditions: List<String>.from(
         json['medicalConditions'] as List? ?? [],
       ),
       notes: json['notes'] as String?,
-      registeredAt: DateTime.parse(json['registeredAt'] as String),
+      registeredAt: _parseDateTime(json['registeredAt']),
       lastDonatedAt: json['lastDonatedAt'] != null
-          ? DateTime.parse(json['lastDonatedAt'] as String)
+          ? _parseDateTime(json['lastDonatedAt'])
           : null,
       profileImage: json['profileImage'] as String?,
       isSuspended: json['isSuspended'] as bool? ?? false,

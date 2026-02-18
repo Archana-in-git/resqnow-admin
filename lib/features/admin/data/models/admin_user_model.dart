@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:resqnow_admin/features/admin/domain/entities/admin_user_entity.dart';
 
 /// Admin User Model for data transfer
@@ -56,15 +57,44 @@ class AdminUserModel {
 
   /// Create from Firestore JSON
   factory AdminUserModel.fromJson(Map<String, dynamic> json) {
+    // Helper function to convert Timestamp or String to DateTime
+    DateTime _parseDateTime(dynamic value) {
+      if (value == null) {
+        return DateTime.now();
+      } else if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String && value.isNotEmpty) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return DateTime.now();
+        }
+      } else if (value is int) {
+        // Handle unix timestamp in milliseconds or seconds
+        try {
+          if (value > 10000000000) {
+            // Likely milliseconds
+            return DateTime.fromMillisecondsSinceEpoch(value);
+          } else {
+            // Likely seconds
+            return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+          }
+        } catch (e) {
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
+    }
+
     return AdminUserModel(
-      uid: json['uid'] as String,
-      email: json['email'] as String,
-      name: json['name'] as String,
+      uid: json['uid'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      name: json['name'] as String? ?? '',
       role: json['role'] as String? ?? 'user',
       accountStatus: json['accountStatus'] as String? ?? 'active',
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: _parseDateTime(json['createdAt']),
       lastLogin: json['lastLogin'] != null
-          ? DateTime.parse(json['lastLogin'] as String)
+          ? _parseDateTime(json['lastLogin'])
           : null,
       profileImage: json['profileImage'] as String?,
       emailVerified: json['emailVerified'] as bool? ?? false,
