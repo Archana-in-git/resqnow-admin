@@ -3,8 +3,9 @@
 ## 🔴 Current Issue: Permission Denied Error
 
 The admin dashboard is showing:
+
 ```
-Error loading donors: Exception: Failed to fetch blood donors: 
+Error loading donors: Exception: Failed to fetch blood donors:
 [cloud_firestore/permission-denied] Missing or insufficient permissions.
 ```
 
@@ -17,6 +18,7 @@ This means **Firestore is blocking read access** because of security rule config
 Your Firestore Database security rules must allow admin users to read/write donor and user data.
 
 ### Step 1: Open Firebase Console
+
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Select your project: **resqnow-12e6c**
 3. Navigate to **Firestore Database** → **Rules** tab
@@ -33,20 +35,21 @@ service cloud.firestore {
 
     // 🔐 Users collection
     match /users/{userId} {
-      // User can read their own document
+      // User can read all users
       allow read: if request.auth != null;
 
       // User can create their own document
       allow create: if request.auth != null &&
                     request.auth.uid == userId;
 
-      // User can update their own document BUT NOT role
-      allow update: if request.auth != null &&
-                    request.auth.uid == userId &&
-                    !("role" in request.resource.data.diff(resource.data).changedKeys());
+      // User can update their own document BUT NOT role, OR admins can update any user (for suspending/managing)
+      allow update: if (request.auth != null &&
+                        request.auth.uid == userId &&
+                        !("role" in request.resource.data.diff(resource.data).changedKeys()))
+                    || isAdmin();
 
-      // No one can delete users from client
-      allow delete: if false;
+      // Only admins can delete users
+      allow delete: if isAdmin();
     }
 
     // 📖 Public read collections
@@ -92,33 +95,38 @@ service cloud.firestore {
 ```
 
 ### Step 3: Publish Rules
+
 Click **Publish** to apply the new rules.
 
 ---
 
 ## 🔐 Security Rules Breakdown
 
-| Collection | Read | Write | Notes |
-|-----------|------|-------|-------|
-| **users** | All Auth Users | Own Doc Only | Cannot change role field |
-| **donors** | All Auth Users | All Auth Users | Full read/write for authenticated users |
-| **categories** | Everyone | Admin Only | Public read, admin write |
-| **medical_conditions** | Everyone | Admin Only | Public read, admin write |
-| **resources** | Everyone | Admin Only | Public read, admin write |
-| **emergency_numbers** | Everyone | Admin Only | Public read, admin write |
-| **chats** | Auth Users Only | Auth Users Only | Private messages, auth required |
+| Collection             | Read            | Write                | Notes                                   |
+| ---------------------- | --------------- | -------------------- | --------------------------------------- |
+| **users**              | All Auth Users  | Own Doc + Admin Edit | Admins can suspend/manage users         |
+| **donors**             | All Auth Users  | All Auth Users       | Full read/write for authenticated users |
+| **categories**         | Everyone        | Admin Only           | Public read, admin write                |
+| **medical_conditions** | Everyone        | Admin Only           | Public read, admin write                |
+| **resources**          | Everyone        | Admin Only           | Public read, admin write                |
+| **emergency_numbers**  | Everyone        | Admin Only           | Public read, admin write                |
+| **chats**              | Auth Users Only | Auth Users Only      | Private messages, auth required         |
 
 ---
 
 ## 👤 User Access Mapping
 
 ### **Admin Users** (role: "admin")
+
 - ✅ Read all users
-- ✅ Update all public collections  
+- ✅ Update all users (suspend, reactivate, etc.)
+- ✅ Delete users
+- ✅ Update all public collections
 - ✅ Read/write all donors
 - ✅ Access admin dashboard
 
 ### **Regular Users** (role: "user", "support", "moderator")
+
 - ✅ Read all users
 - ✅ Read all public collections
 - ✅ Read/write own donors data
@@ -133,10 +141,12 @@ Click **Publish** to apply the new rules.
 The admin dashboard now checks:
 
 1. **Is user authenticated?**
+
    - Status: ✅ Displayed in pages
    - Error: "Not authenticated. Please login first."
 
 2. **Does user have admin role?**
+
    - Status: ✅ Verified against Firestore `users/{uid}/role`
    - Error: "Access denied. Admin privileges required."
 
@@ -149,13 +159,16 @@ The admin dashboard now checks:
 ## � Security Architecture: Two-Layer Protection
 
 ### **Layer 1: Firestore Rules** (Database Level)
+
 - Donors collection: ✅ All authenticated users can read/write
 - Public collections: ✅ Everyone can read, admin-only write
 - Users collection: ✅ Authenticated users can read, own-document write
 - Chats: ✅ Authenticated users only
 
 ### **Layer 2: App-Level Authorization** (Admin Dashboard)
+
 Even though Firestore allows all auth users to access donors, the **admin dashboard** adds an extra check:
+
 ```dart
 final isAdmin = await _adminService.isCurrentUserAdmin();
 if (!isAdmin) {
@@ -164,6 +177,7 @@ if (!isAdmin) {
 ```
 
 This means:
+
 - ✅ Regular users CAN read/write donors via the main app
 - ❌ Regular users CANNOT access the admin dashboard (app-level block)
 - ✅ Admins CAN access the admin dashboard
@@ -191,6 +205,7 @@ Your Firestore `users` collection should have documents like:
 ```
 
 **Valid roles:**
+
 - `admin` - Full admin dashboard + writing to public collections ✅
 - `support` - Cannot access admin dashboard, regular app access
 - `moderator` - Cannot access admin dashboard, regular app access
@@ -207,6 +222,7 @@ Your Firestore `users` collection should have documents like:
 5. **Try as a non-admin user** → Should see "Access denied. Admin privileges required."
 
 If still seeing errors:
+
 - ✅ Verify Firestore rules are published
 - ✅ Check user `role` is exactly `"admin"` (lowercase)
 - ✅ Clear browser cache and refresh
@@ -229,24 +245,29 @@ If still seeing errors:
 ### Still getting "permission-denied" error?
 
 **Check 1: User is logged in**
-- Dashboard should show: "Not authenticated. Please login first." if not  
+
+- Dashboard should show: "Not authenticated. Please login first." if not
 - Make sure you're using the same Firebase project
 
 **Check 2: User has admin role**
+
 - Go to Firebase Console → Firestore → users collection
 - Find your user document
 - Verify `role` field is exactly `"admin"` (lowercase)
 
 **Check 3: Firestore rules are published**
+
 - Go to Firebase Console → Firestore → Rules
 - Check last modified timestamp is recent
 - Click Publish if changes are pending
 
 **Check 4: Collection names match**
+
 - Admin dashboard uses: `users` and `donors` collections
 - Make sure your documents are in these exact collections
 
 **Check 5: Browser cache**
+
 - Clear browser cookies/cache
 - Close and reopen the tab
 - Try in an incognito window

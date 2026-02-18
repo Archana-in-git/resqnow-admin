@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:resqnow_admin/features/admin/domain/entities/resource_entities.dart';
 
 /// Category Model
@@ -36,16 +37,45 @@ class CategoryModel {
   }
 
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
+    // Helper function to convert Timestamp or String to DateTime
+    DateTime _parseDateTime(dynamic value) {
+      if (value == null) {
+        return DateTime.now();
+      } else if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String && value.isNotEmpty) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return DateTime.now();
+        }
+      } else if (value is int) {
+        // Handle unix timestamp in milliseconds or seconds
+        try {
+          if (value > 10000000000) {
+            // Likely milliseconds
+            return DateTime.fromMillisecondsSinceEpoch(value);
+          } else {
+            // Likely seconds
+            return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+          }
+        } catch (e) {
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
+    }
+
     return CategoryModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
       iconPath: json['iconPath'] as String?,
       displayOrder: json['displayOrder'] as int? ?? 999,
       isVisible: json['isVisible'] as bool? ?? true,
       searchAliases: List<String>.from(json['searchAliases'] as List? ?? []),
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: _parseDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
+          ? _parseDateTime(json['updatedAt'])
           : null,
     );
   }
@@ -109,19 +139,48 @@ class EmergencyNumberModel {
   }
 
   factory EmergencyNumberModel.fromJson(Map<String, dynamic> json) {
+    // Helper function to convert Timestamp or String to DateTime
+    DateTime _parseDateTime(dynamic value) {
+      if (value == null) {
+        return DateTime.now();
+      } else if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String && value.isNotEmpty) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return DateTime.now();
+        }
+      } else if (value is int) {
+        // Handle unix timestamp in milliseconds or seconds
+        try {
+          if (value > 10000000000) {
+            // Likely milliseconds
+            return DateTime.fromMillisecondsSinceEpoch(value);
+          } else {
+            // Likely seconds
+            return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+          }
+        } catch (e) {
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
+    }
+
     return EmergencyNumberModel(
-      id: json['id'] as String,
-      serviceName: json['serviceName'] as String,
-      phoneNumber: json['phoneNumber'] as String,
-      category: json['category'] as String,
+      id: json['id'] as String? ?? '',
+      serviceName: json['serviceName'] as String? ?? '',
+      phoneNumber: json['phoneNumber'] as String? ?? '',
+      category: json['category'] as String? ?? '',
       description: json['description'] as String?,
       areaOfCoverage: json['areaOfCoverage'] as String?,
       operatingHours: json['operatingHours'] as String?,
       priority: json['priority'] as int? ?? 999,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: _parseDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
+          ? _parseDateTime(json['updatedAt'])
           : null,
     );
   }
@@ -191,10 +250,39 @@ class ResourceModel {
   }
 
   factory ResourceModel.fromJson(Map<String, dynamic> json) {
+    // Helper function to convert Timestamp or String to DateTime
+    DateTime _parseDateTime(dynamic value) {
+      if (value == null) {
+        return DateTime.now();
+      } else if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String && value.isNotEmpty) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return DateTime.now();
+        }
+      } else if (value is int) {
+        // Handle unix timestamp in milliseconds or seconds
+        try {
+          if (value > 10000000000) {
+            // Likely milliseconds
+            return DateTime.fromMillisecondsSinceEpoch(value);
+          } else {
+            // Likely seconds
+            return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+          }
+        } catch (e) {
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
+    }
+
     return ResourceModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      description: json['description'] as String? ?? '',
       categories: List<String>.from(json['categories'] as List? ?? []),
       tags: List<String>.from(json['tags'] as List? ?? []),
       imageUrls: List<String>.from(json['imageUrls'] as List? ?? []),
@@ -202,9 +290,9 @@ class ResourceModel {
       safetyTips: json['safetyTips'] as String?,
       proTip: json['proTip'] as String?,
       isFeatured: json['isFeatured'] as bool? ?? false,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: _parseDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
+          ? _parseDateTime(json['updatedAt'])
           : null,
     );
   }
@@ -278,10 +366,39 @@ class ConditionModel {
   }
 
   factory ConditionModel.fromJson(Map<String, dynamic> json) {
+    // Helper function to convert Timestamp or String to DateTime
+    DateTime _parseDateTime(dynamic value) {
+      if (value == null) {
+        return DateTime.now();
+      } else if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String && value.isNotEmpty) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return DateTime.now();
+        }
+      } else if (value is int) {
+        // Handle unix timestamp in milliseconds or seconds
+        try {
+          if (value > 10000000000) {
+            // Likely milliseconds
+            return DateTime.fromMillisecondsSinceEpoch(value);
+          } else {
+            // Likely seconds
+            return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+          }
+        } catch (e) {
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
+    }
+
     return ConditionModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      severity: json['severity'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      severity: json['severity'] as String? ?? '',
       imageUrls: List<String>.from(json['imageUrls'] as List? ?? []),
       firstAidSteps: List<String>.from(json['firstAidSteps'] as List? ?? []),
       doNotDo: List<String>.from(json['doNotDo'] as List? ?? []),
@@ -298,9 +415,9 @@ class ConditionModel {
       ),
       doctorTypes: List<String>.from(json['doctorTypes'] as List? ?? []),
       hospitalLocatorLink: json['hospitalLocatorLink'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: _parseDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
+          ? _parseDateTime(json['updatedAt'])
           : null,
     );
   }

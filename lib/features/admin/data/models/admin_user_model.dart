@@ -57,39 +57,44 @@ class AdminUserModel {
 
   /// Create from Firestore JSON
   factory AdminUserModel.fromJson(Map<String, dynamic> json) {
-    // createdAt and lastLogin can come as Firestore Timestamps, ints, or ISO strings
-    final dynamic createdVal = json['createdAt'];
-    DateTime createdAt;
-    if (createdVal is Timestamp) {
-      createdAt = createdVal.toDate();
-    } else if (createdVal is int) {
-      createdAt = DateTime.fromMillisecondsSinceEpoch(createdVal);
-    } else if (createdVal is String) {
-      createdAt = DateTime.parse(createdVal);
-    } else {
-      createdAt = DateTime.now();
-    }
-
-    final dynamic lastLoginVal = json['lastLogin'];
-    DateTime? lastLogin;
-    if (lastLoginVal != null) {
-      if (lastLoginVal is Timestamp) {
-        lastLogin = lastLoginVal.toDate();
-      } else if (lastLoginVal is int) {
-        lastLogin = DateTime.fromMillisecondsSinceEpoch(lastLoginVal);
-      } else if (lastLoginVal is String) {
-        lastLogin = DateTime.parse(lastLoginVal);
+    // Helper function to convert Timestamp, int, or String to DateTime
+    DateTime _parseDateTime(dynamic value) {
+      if (value == null) {
+        return DateTime.now();
+      } else if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String && value.isNotEmpty) {
+        try {
+          return DateTime.parse(value);
+        } catch (_) {
+          return DateTime.now();
+        }
+      } else if (value is int) {
+        try {
+          if (value > 10000000000) {
+            // milliseconds
+            return DateTime.fromMillisecondsSinceEpoch(value);
+          } else {
+            // seconds
+            return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+          }
+        } catch (_) {
+          return DateTime.now();
+        }
       }
+      return DateTime.now();
     }
 
     return AdminUserModel(
-      uid: json['uid'] as String,
-      email: json['email'] as String,
-      name: json['name'] as String,
+      uid: json['uid'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      name: json['name'] as String? ?? '',
       role: json['role'] as String? ?? 'user',
       accountStatus: json['accountStatus'] as String? ?? 'active',
-      createdAt: createdAt,
-      lastLogin: lastLogin,
+      createdAt: _parseDateTime(json['createdAt']),
+      lastLogin: json['lastLogin'] != null
+          ? _parseDateTime(json['lastLogin'])
+          : null,
       profileImage: json['profileImage'] as String?,
       emailVerified: json['emailVerified'] as bool? ?? false,
     );
