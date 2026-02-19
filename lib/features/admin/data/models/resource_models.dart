@@ -1,203 +1,95 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:resqnow_admin/features/admin/domain/entities/resource_entities.dart';
 
-/// Category Model
+/// Category Model - Matches main app data structure
 class CategoryModel {
   final String id;
   final String name;
-  final String? iconPath;
-  final int displayOrder;
-  final bool isVisible;
-  final List<String>? searchAliases;
-  final DateTime createdAt;
-  final DateTime? updatedAt;
+  final String? iconAsset;
+  final int? order;
+  final List<String>? aliases;
 
   CategoryModel({
     required this.id,
     required this.name,
-    this.iconPath,
-    required this.displayOrder,
-    required this.isVisible,
-    this.searchAliases,
-    required this.createdAt,
-    this.updatedAt,
+    this.iconAsset,
+    this.order,
+    this.aliases,
   });
 
   CategoryEntity toEntity() {
     return CategoryEntity(
       id: id,
       name: name,
-      iconPath: iconPath,
-      displayOrder: displayOrder,
-      isVisible: isVisible,
-      searchAliases: searchAliases,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
+      iconPath: iconAsset,
+      displayOrder: order ?? 999,
+      isVisible: true,
+      searchAliases: aliases,
+      createdAt: DateTime.now(),
+      updatedAt: null,
     );
   }
 
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
-    // Helper function to convert Timestamp or String to DateTime
-    DateTime _parseDateTime(dynamic value) {
-      if (value == null) {
-        return DateTime.now();
-      } else if (value is Timestamp) {
-        return value.toDate();
-      } else if (value is String && value.isNotEmpty) {
-        try {
-          return DateTime.parse(value);
-        } catch (e) {
-          return DateTime.now();
-        }
-      } else if (value is int) {
-        // Handle unix timestamp in milliseconds or seconds
-        try {
-          if (value > 10000000000) {
-            // Likely milliseconds
-            return DateTime.fromMillisecondsSinceEpoch(value);
-          } else {
-            // Likely seconds
-            return DateTime.fromMillisecondsSinceEpoch(value * 1000);
-          }
-        } catch (e) {
-          return DateTime.now();
-        }
-      }
-      return DateTime.now();
-    }
-
     return CategoryModel(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
-      iconPath: json['iconPath'] as String?,
-      displayOrder: json['displayOrder'] as int? ?? 999,
-      isVisible: json['isVisible'] as bool? ?? true,
-      searchAliases: List<String>.from(json['searchAliases'] as List? ?? []),
-      createdAt: _parseDateTime(json['createdAt']),
-      updatedAt: json['updatedAt'] != null
-          ? _parseDateTime(json['updatedAt'])
-          : null,
+      iconAsset: json['iconAsset'] as String?,
+      order: json['order'] as int?,
+      aliases: List<String>.from(json['aliases'] as List? ?? []),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'name': name,
-      'iconPath': iconPath,
-      'displayOrder': displayOrder,
-      'isVisible': isVisible,
-      'searchAliases': searchAliases,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
+      'iconAsset': iconAsset,
+      'order': order ?? 999,
+      'aliases': aliases ?? [],
     };
   }
 }
 
-/// Emergency Number Model
+/// Emergency Number Model - Matches main app data structure
 class EmergencyNumberModel {
   final String id;
-  final String serviceName;
-  final String phoneNumber;
-  final String category;
-  final String? description;
-  final String? areaOfCoverage;
-  final String? operatingHours;
-  final int priority;
-  final bool isActive;
-  final DateTime createdAt;
-  final DateTime? updatedAt;
+  final String name;
+  final String number;
 
   EmergencyNumberModel({
     required this.id,
-    required this.serviceName,
-    required this.phoneNumber,
-    required this.category,
-    this.description,
-    this.areaOfCoverage,
-    this.operatingHours,
-    required this.priority,
-    required this.isActive,
-    required this.createdAt,
-    this.updatedAt,
+    required this.name,
+    required this.number,
   });
 
   EmergencyNumberEntity toEntity() {
     return EmergencyNumberEntity(
       id: id,
-      serviceName: serviceName,
-      phoneNumber: phoneNumber,
-      category: category,
-      description: description,
-      areaOfCoverage: areaOfCoverage,
-      operatingHours: operatingHours,
-      priority: priority,
-      isActive: isActive,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
+      serviceName: name,
+      phoneNumber: number,
+      category: '',
+      description: null,
+      areaOfCoverage: null,
+      operatingHours: null,
+      priority: 1,
+      isActive: true,
+      createdAt: DateTime.now(),
+      updatedAt: null,
     );
   }
 
   factory EmergencyNumberModel.fromJson(Map<String, dynamic> json) {
-    // Helper function to convert Timestamp or String to DateTime
-    DateTime _parseDateTime(dynamic value) {
-      if (value == null) {
-        return DateTime.now();
-      } else if (value is Timestamp) {
-        return value.toDate();
-      } else if (value is String && value.isNotEmpty) {
-        try {
-          return DateTime.parse(value);
-        } catch (e) {
-          return DateTime.now();
-        }
-      } else if (value is int) {
-        // Handle unix timestamp in milliseconds or seconds
-        try {
-          if (value > 10000000000) {
-            // Likely milliseconds
-            return DateTime.fromMillisecondsSinceEpoch(value);
-          } else {
-            // Likely seconds
-            return DateTime.fromMillisecondsSinceEpoch(value * 1000);
-          }
-        } catch (e) {
-          return DateTime.now();
-        }
-      }
-      return DateTime.now();
-    }
-
     return EmergencyNumberModel(
       id: json['id'] as String? ?? '',
-      serviceName: json['serviceName'] as String? ?? '',
-      phoneNumber: json['phoneNumber'] as String? ?? '',
-      category: json['category'] as String? ?? '',
-      description: json['description'] as String?,
-      areaOfCoverage: json['areaOfCoverage'] as String?,
-      operatingHours: json['operatingHours'] as String?,
-      priority: json['priority'] as int? ?? 999,
-      isActive: json['isActive'] as bool? ?? true,
-      createdAt: _parseDateTime(json['createdAt']),
-      updatedAt: json['updatedAt'] != null
-          ? _parseDateTime(json['updatedAt'])
-          : null,
+      name: json['name'] as String? ?? '',
+      number: json['number'] as String? ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'serviceName': serviceName,
-      'phoneNumber': phoneNumber,
-      'category': category,
-      'description': description,
-      'areaOfCoverage': areaOfCoverage,
-      'operatingHours': operatingHours,
-      'priority': priority,
-      'isActive': isActive,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
+      'name': name,
+      'number': number,
     };
   }
 }

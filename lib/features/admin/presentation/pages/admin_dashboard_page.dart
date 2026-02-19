@@ -184,9 +184,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               const SizedBox(height: 8),
               Text(
                 'Manage ResQnow application content and users',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Colors.grey),
               ),
               const SizedBox(height: 32),
               GridView.builder(
@@ -230,17 +231,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               const SizedBox(height: 12),
               Text(
                 item.label,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Flexible(
                 child: Text(
                   item.description,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Colors.grey),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -254,12 +257,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   void _onMenuItemTap(int index) {
     Widget pageToNavigate;
-    
+
     switch (index) {
       case 0:
         // Dashboard - refresh current page
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Refreshing dashboard...')),
+          const SnackBar(content: Text('You are on the Dashboard')),
         );
         return;
       case 1:
@@ -293,7 +296,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       default:
         return;
     }
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => pageToNavigate),

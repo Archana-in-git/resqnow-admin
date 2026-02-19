@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:resqnow_admin/core/services/admin_service.dart';
 import 'package:resqnow_admin/features/admin/data/models/resource_models.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-/// Medical Conditions Management Page
+/// Category Management Page
 class ConditionsManagementPage extends StatefulWidget {
-  const ConditionsManagementPage({Key? key}) : super(key: key);
+  const ConditionsManagementPage({super.key});
 
   @override
   State<ConditionsManagementPage> createState() =>
@@ -11,26 +14,35 @@ class ConditionsManagementPage extends StatefulWidget {
 }
 
 class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
-  List<ConditionModel> _conditions = [];
+  late AdminService _adminService;
+  List<CategoryModel> _categories = [];
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadConditions();
+    _adminService = AdminService(
+      firestore: FirebaseFirestore.instance,
+      auth: FirebaseAuth.instance,
+    );
+    _loadCategories();
   }
 
-  Future<void> _loadConditions() async {
+  Future<void> _loadCategories() async {
     setState(() => _isLoading = true);
     try {
-      // TODO: Implement conditions loading
-      _conditions = [];
+      final categories = await _adminService.getAllCategories();
+      setState(() => _categories = categories);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading conditions: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading categories: $e')),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -38,125 +50,214 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Medical Conditions Management'),
+        title: const Text('Categories Management'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Navigate to create condition page
-        },
+        onPressed: () => _showAddEditDialog(),
         child: const Icon(Icons.add),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _conditions.isEmpty
-          ? const Center(child: Text('No conditions found'))
-          : ListView.builder(
-              itemCount: _conditions.length,
-              itemBuilder: (context, index) {
-                final condition = _conditions[index];
-                return _buildConditionTile(condition);
-              },
-            ),
+          : _categories.isEmpty
+              ? const Center(child: Text('No categories found'))
+              : ListView.builder(
+                  itemCount: _categories.length,
+                  itemBuilder: (context, index) {
+                    final category = _categories[index];
+                    return _buildCategoryTile(category);
+                  },
+                ),
     );
   }
 
-  Widget _buildConditionTile(ConditionModel condition) {
+  Widget _buildCategoryTile(CategoryModel category) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
-        leading: condition.imageUrls.isNotEmpty
-            ? Image.network(
-                condition.imageUrls.first,
-                width: 50,
-                height: 50,
-                fit: BoxFit.cover,
-              )
-            : const Icon(Icons.medical_services),
-        title: Text(condition.name),
+        leading: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.teal[100],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(Icons.category, color: Colors.teal[700]),
+        ),
+        title: Text(category.name),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Chip(
-                  label: Text(condition.severity),
-                  backgroundColor: _getSeverityColor(condition.severity),
-                ),
-                const SizedBox(width: 8),
-                Chip(label: Text('${condition.doctorTypes.length} doctors')),
-              ],
-            ),
+            Text('Order: ${category.order ?? "Not set"}'),
             Text(
-              condition.firstAidSteps.length > 0
-                  ? '${condition.firstAidSteps.length} first aid steps'
-                  : 'No steps',
+              'Aliases: ${category.aliases?.join(", ") ?? "None"}',
               style: const TextStyle(fontSize: 12),
             ),
           ],
         ),
-        trailing: PopupMenuButton(
+        trailing: PopupMenuButton<String>(
           itemBuilder: (context) => [
-            const PopupMenuItem(value: 'view', child: Text('View')),
             const PopupMenuItem(value: 'edit', child: Text('Edit')),
             const PopupMenuItem(value: 'delete', child: Text('Delete')),
           ],
           onSelected: (value) {
-            _handleConditionAction(condition, value);
+            if (value == 'edit') {
+              _showAddEditDialog(category: category);
+            } else if (value == 'delete') {
+              _showDeleteDialog(category);
+            }
           },
         ),
       ),
     );
   }
 
-  Color _getSeverityColor(String severity) {
-    switch (severity) {
-      case 'critical':
-        return Colors.red[200]!;
-      case 'high':
-        return Colors.orange[200]!;
-      case 'medium':
-        return Colors.yellow[200]!;
-      case 'low':
-        return Colors.green[200]!;
-      default:
-        return Colors.grey[200]!;
-    }
-  }
+  void _showAddEditDialog({CategoryModel? category}) {
+    final isEdit = category != null;
+    final nameController = TextEditingController(text: category?.name ?? '');
+    final orderController = TextEditingController(
+      text: category?.order?.toString() ?? '0',
+    );
+    final aliasesController = TextEditingController(
+      text: category?.aliases?.join(", ") ?? '',
+    );
 
-  void _handleConditionAction(ConditionModel condition, String action) {
-    switch (action) {
-      case 'view':
-        // TODO: Navigate to condition detail
-        break;
-      case 'edit':
-        // TODO: Navigate to condition edit
-        break;
-      case 'delete':
-        _showDeleteDialog(condition);
-        break;
-    }
-  }
-
-  void _showDeleteDialog(ConditionModel condition) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Condition'),
-        content: const Text(
-          'Are you sure you want to delete this medical condition?',
+        title: Text(isEdit ? 'Edit Category' : 'Add New Category'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Category Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: orderController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Display Order',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: aliasesController,
+                decoration: const InputDecoration(
+                  labelText: 'Aliases (comma separated)',
+                  border: OutlineInputBorder(),
+                  hintText: 'pain, headache, migraine',
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () {
-              // TODO: Implement delete
-              Navigator.pop(context);
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Name cannot be empty')),
+                );
+                return;
+              }
+
+              try {
+                final aliases = aliasesController.text
+                    .split(',')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList();
+
+                if (isEdit) {
+                  await _adminService.updateCategory(
+                    category.id,
+                    {
+                      'name': nameController.text,
+                      'order': int.parse(orderController.text),
+                      'aliases': aliases,
+                    },
+                  );
+                } else {
+                  await _adminService.createCategory(
+                    CategoryModel(
+                      id: '',
+                      name: nameController.text,
+                      order: int.parse(orderController.text),
+                      aliases: aliases,
+                    ),
+                  );
+                }
+                if (mounted) {
+                  Navigator.pop(context);
+                  _loadCategories();
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(isEdit ? 'Update' : 'Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDialog(CategoryModel category) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Category'),
+        content: Text(
+          'Are you sure you want to delete "${category.name}"? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await _adminService.deleteCategory(category.id);
+                if (mounted) {
+                  Navigator.pop(context);
+                  _loadCategories();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Category deleted')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

@@ -459,6 +459,18 @@ class AdminService {
     }
   }
 
+  /// Delete resource
+  Future<void> deleteResource(String resourceId) async {
+    try {
+      await firestore
+          .collection(resourcesCollection)
+          .doc(resourceId)
+          .delete();
+    } catch (e) {
+      throw Exception('Failed to delete resource: $e');
+    }
+  }
+
   /// ============ Conditions Management ============
 
   /// Get all conditions
@@ -502,6 +514,18 @@ class AdminService {
           .update(data);
     } catch (e) {
       throw Exception('Failed to update condition: $e');
+    }
+  }
+
+  /// Delete condition
+  Future<void> deleteCondition(String conditionId) async {
+    try {
+      await firestore
+          .collection(conditionsCollection)
+          .doc(conditionId)
+          .delete();
+    } catch (e) {
+      throw Exception('Failed to delete condition: $e');
     }
   }
 }
