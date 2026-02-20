@@ -31,7 +31,7 @@ class AdminService {
           .get();
 
       if (!userDoc.exists) return false;
-      
+
       final role = userDoc.get('role') as String?;
       return role == 'admin';
     } catch (e) {
@@ -239,10 +239,7 @@ class AdminService {
   /// Get donor by UID
   Future<BloodDonorModel?> getDonorByUid(String uid) async {
     try {
-      final doc = await firestore
-          .collection(donorsCollection)
-          .doc(uid)
-          .get();
+      final doc = await firestore.collection(donorsCollection).doc(uid).get();
       if (!doc.exists) return null;
       return BloodDonorModel.fromJson({
         ...doc.data() as Map<String, dynamic>,
@@ -304,7 +301,7 @@ class AdminService {
     try {
       final snapshot = await firestore
           .collection(categoriesCollection)
-          .orderBy('displayOrder')
+          .orderBy('order')
           .get();
 
       return snapshot.docs
@@ -358,7 +355,6 @@ class AdminService {
     try {
       final snapshot = await firestore
           .collection(emergencyNumbersCollection)
-          .orderBy('priority')
           .get();
 
       return snapshot.docs
@@ -462,10 +458,7 @@ class AdminService {
   /// Delete resource
   Future<void> deleteResource(String resourceId) async {
     try {
-      await firestore
-          .collection(resourcesCollection)
-          .doc(resourceId)
-          .delete();
+      await firestore.collection(resourcesCollection).doc(resourceId).delete();
     } catch (e) {
       throw Exception('Failed to delete resource: $e');
     }
