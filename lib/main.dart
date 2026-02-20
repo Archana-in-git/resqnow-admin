@@ -28,6 +28,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'ResQnow Admin Dashboard',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
@@ -41,7 +42,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: // Provide AuthController globally
-          ChangeNotifierProvider(
+      ChangeNotifierProvider(
         create: (_) => AdminAuthController(),
         child: const AdminShell(),
       ),

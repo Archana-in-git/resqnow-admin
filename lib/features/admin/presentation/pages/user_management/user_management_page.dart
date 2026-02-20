@@ -14,6 +14,19 @@ class UserManagementPage extends StatefulWidget {
   State<UserManagementPage> createState() => _UserManagementPageState();
 }
 
+// Theme colors
+class UserManagementColors {
+  static const Color primaryTeal = Color(0xFF00796B);
+  static const Color primaryDarkTeal = Color(0xFF004D4A);
+  static const Color accentRed = Color(0xFFD32F2F);
+  static const Color successGreen = Color(0xFF388E3C);
+  static const Color warningAmber = Color(0xFFFFA000);
+  static const Color textPrimary = Color(0xFF212121);
+  static const Color textSecondary = Color(0xFF757575);
+  static const Color dividerColor = Color(0xFFE0E0E0);
+  static const Color softBackground = Color(0xFFFAFAFA);
+}
+
 class _UserManagementPageState extends State<UserManagementPage> {
   late AdminService _adminService;
   final TextEditingController _searchController = TextEditingController();
@@ -63,13 +76,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
       _filteredUsers = _allUsers.where((user) {
         // Search filter
         final searchQuery = _searchController.text.toLowerCase();
-        final matchesSearch = searchQuery.isEmpty ||
+        final matchesSearch =
+            searchQuery.isEmpty ||
             user.name.toLowerCase().contains(searchQuery) ||
             user.email.toLowerCase().contains(searchQuery);
 
         // Role filter
-        final matchesRole =
-            _selectedRole.isEmpty || user.role == _selectedRole;
+        final matchesRole = _selectedRole.isEmpty || user.role == _selectedRole;
 
         // Status filter
         final matchesStatus =
@@ -83,60 +96,83 @@ class _UserManagementPageState extends State<UserManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: UserManagementColors.softBackground,
       appBar: AppBar(
-        title: const Text('User Management'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        elevation: 4,
+        title: const Text(
+          'User Management',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            color: Colors.white,
+            letterSpacing: 0.3,
+          ),
+        ),
+        backgroundColor: UserManagementColors.primaryTeal,
+        elevation: 0,
+        toolbarHeight: 80,
+        centerTitle: false,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
       ),
       body: Column(
         children: [
-          // Filter Bar
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
+          // Filter Bar with elegant design
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Column(
               children: [
-                // Search
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search by name or email...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                // Search Bar
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 12,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name or email...',
+                      hintStyle: const TextStyle(
+                        color: UserManagementColors.textSecondary,
+                        fontSize: 14,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: UserManagementColors.textSecondary,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 // Filters Row
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: _buildFilterDropdown(
+                        label: 'Role',
                         value: _selectedRole.isEmpty ? null : _selectedRole,
-                        decoration: InputDecoration(
-                          labelText: 'Role',
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        items: ['', 'admin', 'support', 'moderator', 'user']
-                            .map(
-                              (role) => DropdownMenuItem(
-                                value: role,
-                                child: Text(
-                                  role.isEmpty ? 'All Roles' : role,
-                                ),
-                              ),
-                            )
-                            .toList(),
+                        items: [
+                          ('', 'All Roles'),
+                          ('admin', 'Admin'),
+                          ('support', 'Support'),
+                          ('moderator', 'Moderator'),
+                          ('user', 'User'),
+                        ],
                         onChanged: (value) {
                           setState(() => _selectedRole = value ?? '');
                           _applyFilters();
@@ -145,28 +181,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: _buildFilterDropdown(
+                        label: 'Status',
                         value: _selectedStatus.isEmpty ? null : _selectedStatus,
-                        decoration: InputDecoration(
-                          labelText: 'Status',
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        items: ['', 'active', 'suspended', 'pending']
-                            .map(
-                              (status) => DropdownMenuItem(
-                                value: status,
-                                child: Text(
-                                  status.isEmpty ? 'All Status' : status,
-                                ),
-                              ),
-                            )
-                            .toList(),
+                        items: [
+                          ('', 'All Status'),
+                          ('active', 'Active'),
+                          ('suspended', 'Suspended'),
+                          ('pending', 'Pending'),
+                        ],
                         onChanged: (value) {
                           setState(() => _selectedStatus = value ?? '');
                           _applyFilters();
@@ -174,17 +197,52 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _searchController.clear();
-                          _selectedRole = '';
-                          _selectedStatus = '';
-                        });
-                        _applyFilters();
-                      },
-                      icon: const Icon(Icons.clear),
-                      label: const Text('Clear'),
+                    Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _searchController.clear();
+                              _selectedRole = '';
+                              _selectedStatus = '';
+                            });
+                            _applyFilters();
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.clear,
+                                color: UserManagementColors.textSecondary,
+                                size: 20,
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                'Clear',
+                                style: TextStyle(
+                                  color: UserManagementColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -196,18 +254,88 @@ class _UserManagementPageState extends State<UserManagementPage> {
           // User List
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: UserManagementColors.primaryTeal,
+                    ),
+                  )
                 : _filteredUsers.isEmpty
-                    ? const EmptyUserListWidget()
-                    : ListView.builder(
-                        itemCount: _filteredUsers.length,
-                        itemBuilder: (context, index) {
-                          final user = _filteredUsers[index];
-                          return _buildUserTile(user);
-                        },
-                      ),
+                ? const EmptyUserListWidget()
+                : Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    child: ListView.builder(
+                      itemCount: _filteredUsers.length,
+                      itemBuilder: (context, index) {
+                        final user = _filteredUsers[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildUserTile(user),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterDropdown({
+    required String label,
+    required String? value,
+    required List<(String, String)> items,
+    required Function(String?) onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(
+            color: UserManagementColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+          border: InputBorder.none,
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
+        ),
+        items: items
+            .map(
+              (item) => DropdownMenuItem(
+                value: item.$1,
+                child: Text(
+                  item.$2,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: UserManagementColors.textPrimary,
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+        onChanged: onChanged,
+        icon: const Icon(
+          Icons.expand_more,
+          color: UserManagementColors.textSecondary,
+        ),
       ),
     );
   }
@@ -244,9 +372,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(28.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,36 +386,75 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     const Text(
                       'User Details',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
+                        color: UserManagementColors.textPrimary,
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: UserManagementColors.softBackground,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: UserManagementColors.textSecondary,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Center(
                   child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundImage: user.profileImage != null
-                            ? NetworkImage(user.profileImage!)
-                            : null,
-                        backgroundColor: Colors.blue[100],
-                        child: user.profileImage == null
-                            ? const Icon(Icons.person, size: 50)
-                            : null,
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              UserManagementColors.primaryTeal,
+                              UserManagementColors.primaryDarkTeal,
+                            ],
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: UserManagementColors.primaryTeal
+                                  .withOpacity(0.3),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.transparent,
+                          backgroundImage: user.profileImage != null
+                              ? NetworkImage(user.profileImage!)
+                              : null,
+                          child: user.profileImage == null
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       Text(
                         user.name,
                         style: const TextStyle(
-                          fontSize: 22,
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
+                          color: UserManagementColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -294,64 +462,109 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           UserHelper.getRoleBadge(user.role),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           UserHelper.getStatusBadge(user),
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                _buildDetailRow('Email:', user.email),
-                _buildDetailRow('Role:', UserHelper.getRoleDisplayName(user.role)),
-                _buildDetailRow('Status:', user.accountStatus),
-                _buildDetailRow('Account Created:', UserHelper.formatDate(user.createdAt)),
-                if (user.lastLogin != null)
-                  _buildDetailRow(
-                    'Last Login:',
-                    UserHelper.formatDateTime(user.lastLogin!),
+                const SizedBox(height: 28),
+                Container(
+                  decoration: BoxDecoration(
+                    color: UserManagementColors.softBackground,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: UserManagementColors.dividerColor,
+                      width: 1,
+                    ),
                   ),
-                _buildDetailRow(
-                  'Email Verified:',
-                  user.emailVerified ? '✓ Yes' : '✗ No',
-                ),
-                if (user.accountStatus != 'active')
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
                     children: [
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.yellow.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.yellow.shade200),
+                      _buildDetailRow('Email:', user.email),
+                      _buildDivider(),
+                      _buildDetailRow(
+                        'Role:',
+                        UserHelper.getRoleDisplayName(user.role),
+                      ),
+                      _buildDivider(),
+                      _buildDetailRow('Status:', user.accountStatus),
+                      _buildDivider(),
+                      _buildDetailRow(
+                        'Account Created:',
+                        UserHelper.formatDate(user.createdAt),
+                      ),
+                      if (user.lastLogin != null) ...[
+                        _buildDivider(),
+                        _buildDetailRow(
+                          'Last Login:',
+                          UserHelper.formatDateTime(user.lastLogin!),
                         ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.warning, color: Colors.yellow.shade700),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Status: ${user.accountStatus}',
-                                style: TextStyle(
-                                  color: Colors.yellow.shade900,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                      ],
+                      _buildDivider(),
+                      _buildDetailRow(
+                        'Email Verified:',
+                        user.emailVerified ? '✓ Yes' : '✗ No',
                       ),
                     ],
                   ),
+                ),
+                if (user.accountStatus != 'active') ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: UserManagementColors.warningAmber.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: UserManagementColors.warningAmber.withOpacity(
+                          0.3,
+                        ),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_rounded,
+                          color: UserManagementColors.warningAmber,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Status: ${user.accountStatus}',
+                            style: const TextStyle(
+                              color: UserManagementColors.warningAmber,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Close'),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                      ),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(
+                          color: UserManagementColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -363,9 +576,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
     );
   }
 
+  Widget _buildDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Divider(color: UserManagementColors.dividerColor, height: 1),
+    );
+  }
+
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -373,11 +593,22 @@ class _UserManagementPageState extends State<UserManagementPage> {
             width: 140,
             child: Text(
               label,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: UserManagementColors.textSecondary,
+                fontSize: 13,
+              ),
             ),
           ),
           Expanded(
-            child: Text(value),
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: UserManagementColors.textPrimary,
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
           ),
         ],
       ),
@@ -392,9 +623,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(28.0),
             child: StatefulBuilder(
               builder: (context, setState) => Column(
                 mainAxisSize: MainAxisSize.min,
@@ -406,69 +638,86 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       const Text(
                         'Edit User',
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
+                          color: UserManagementColors.textPrimary,
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => Navigator.pop(context),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: UserManagementColors.softBackground,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: UserManagementColors.textSecondary,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
+                  const SizedBox(height: 20),
+                  _buildStyledTextField(
                     controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Name',
-                      border: OutlineInputBorder(),
-                    ),
+                    label: 'Name',
+                    icon: Icons.person,
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
+                  _buildStyledDropdown(
+                    label: 'Role',
                     value: selectedRole,
-                    decoration: const InputDecoration(
-                      labelText: 'Role',
-                      border: OutlineInputBorder(),
-                    ),
                     items: ['admin', 'support', 'moderator', 'user']
                         .map(
-                          (role) => DropdownMenuItem(
-                            value: role,
-                            child: Text(UserHelper.getRoleDisplayName(role)),
-                          ),
+                          (role) => (role, UserHelper.getRoleDisplayName(role)),
                         )
                         .toList(),
                     onChanged: (value) {
                       setState(() => selectedRole = value ?? user.role);
                     },
+                    icon: Icons.security,
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
+                  _buildStyledDropdown(
+                    label: 'Status',
                     value: selectedStatus,
-                    decoration: const InputDecoration(
-                      labelText: 'Status',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: ['active', 'suspended', 'pending']
-                        .map(
-                          (status) => DropdownMenuItem(
-                            value: status,
-                            child: Text(status),
-                          ),
-                        )
-                        .toList(),
+                    items: [
+                      'active',
+                      'suspended',
+                      'pending',
+                    ].map((status) => (status, status.toUpperCase())).toList(),
                     onChanged: (value) {
-                      setState(() => selectedStatus = value ?? user.accountStatus);
+                      setState(
+                        () => selectedStatus = value ?? user.accountStatus,
+                      );
                     },
+                    icon: Icons.assignment_turned_in,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: UserManagementColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
@@ -481,7 +730,23 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           );
                           Navigator.pop(context);
                         },
-                        child: const Text('Save Changes'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: UserManagementColors.primaryTeal,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Save Changes',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -494,37 +759,193 @@ class _UserManagementPageState extends State<UserManagementPage> {
     );
   }
 
+  Widget _buildStyledTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: UserManagementColors.primaryTeal),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          labelStyle: const TextStyle(
+            color: UserManagementColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStyledDropdown({
+    required String label,
+    required String value,
+    required List<(String, String)> items,
+    required Function(String?) onChanged,
+    required IconData icon,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: UserManagementColors.primaryTeal),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 10,
+          ),
+          labelStyle: const TextStyle(
+            color: UserManagementColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        items: items
+            .map(
+              (item) => DropdownMenuItem(
+                value: item.$1,
+                child: Text(
+                  item.$2,
+                  style: const TextStyle(
+                    color: UserManagementColors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+        onChanged: onChanged,
+        icon: const Icon(
+          Icons.expand_more,
+          color: UserManagementColors.textSecondary,
+        ),
+      ),
+    );
+  }
+
   void _showSuspendDialog(AdminUserModel user) {
     final reasonController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Suspend User'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: UserManagementColors.warningAmber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.warning_rounded,
+                color: UserManagementColors.warningAmber,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Suspend User',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: UserManagementColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Are you sure you want to suspend ${user.name}?'),
+            Text(
+              'Are you sure you want to suspend ${user.name}?',
+              style: const TextStyle(
+                color: UserManagementColors.textPrimary,
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
+            ),
             const SizedBox(height: 16),
             const Text(
-              'Reason for suspension:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: reasonController,
-              decoration: const InputDecoration(
-                hintText: 'Enter reason...',
-                border: OutlineInputBorder(),
+              'Reason for suspension (optional):',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: UserManagementColors.textSecondary,
+                fontSize: 12,
               ),
-              maxLines: 3,
+            ),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: UserManagementColors.softBackground,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: UserManagementColors.dividerColor,
+                  width: 1,
+                ),
+              ),
+              child: TextField(
+                controller: reasonController,
+                decoration: InputDecoration(
+                  hintText: 'Enter reason...',
+                  hintStyle: const TextStyle(
+                    color: UserManagementColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                ),
+                maxLines: 3,
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                color: UserManagementColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -532,11 +953,18 @@ class _UserManagementPageState extends State<UserManagementPage> {
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: UserManagementColors.warningAmber,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text(
               'Suspend',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -558,9 +986,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error suspending user: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error suspending user: $e')));
       }
     }
   }
@@ -579,9 +1007,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error reactivating user: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error reactivating user: $e')));
       }
     }
   }
@@ -616,13 +1044,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
               _deleteUser(user);
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.white),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -643,9 +1066,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting user: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error deleting user: $e')));
       }
     }
   }
@@ -673,9 +1096,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating user: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error updating user: $e')));
       }
     }
   }
