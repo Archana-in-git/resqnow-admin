@@ -74,24 +74,53 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.teal[100],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(Icons.category, color: Colors.teal[700]),
-        ),
+        leading: category.imageUrls.isNotEmpty
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  category.imageUrls.first,
+                  width: 50,
+                  height: 50,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.teal[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.category, color: Colors.teal[700]),
+                    );
+                  },
+                ),
+              )
+            : Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.teal[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.category, color: Colors.teal[700]),
+              ),
         title: Text(category.name),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (category.description != null && category.description!.isNotEmpty)
+              Text(
+                category.description!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12),
+              ),
             Text('Order: ${category.order ?? "Not set"}'),
-            Text(
-              'Aliases: ${category.aliases?.join(", ") ?? "None"}',
-              style: const TextStyle(fontSize: 12),
-            ),
+            if (category.aliases.isNotEmpty)
+              Text(
+                'Aliases: ${category.aliases.join(", ")}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
           ],
         ),
         trailing: PopupMenuButton<String>(
@@ -114,12 +143,19 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
   void _showAddEditDialog({CategoryModel? category}) {
     final isEdit = category != null;
     final nameController = TextEditingController(text: category?.name ?? '');
+    final descriptionController =
+        TextEditingController(text: category?.description ?? '');
     final orderController = TextEditingController(
       text: category?.order?.toString() ?? '0',
     );
     final aliasesController = TextEditingController(
-      text: category?.aliases?.join(", ") ?? '',
+      text: category?.aliases.join(", ") ?? '',
     );
+    final imageUrlsController = TextEditingController(
+      text: category?.imageUrls.join('\n') ?? '',
+    );
+    final videoUrlController =
+        TextEditingController(text: category?.videoUrl ?? '');
 
     showDialog(
       context: context,
@@ -132,11 +168,21 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
               TextField(
                 controller: nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Category Name',
+                  labelText: 'Category Name *',
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description/Details',
+                  border: OutlineInputBorder(),
+                  hintText: 'Detailed information about this category',
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: orderController,
                 keyboardType: TextInputType.number,
@@ -145,7 +191,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextField(
                 controller: aliasesController,
                 decoration: const InputDecoration(
@@ -154,6 +200,25 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                   hintText: 'pain, headache, migraine',
                 ),
                 maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: imageUrlsController,
+                decoration: const InputDecoration(
+                  labelText: 'Picture URLs (one per line)',
+                  border: OutlineInputBorder(),
+                  hintText: 'https://example.com/image1.jpg\nhttps://example.com/image2.jpg',
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: videoUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'YouTube Video Link',
+                  border: OutlineInputBorder(),
+                  hintText: 'https://www.youtube.com/watch?v=...',
+                ),
               ),
             ],
           ),
@@ -179,28 +244,59 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                     .where((e) => e.isNotEmpty)
                     .toList();
 
+                final imageUrls = imageUrlsController.text
+                    .split('\n')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList();
+
+                final videoUrl = videoUrlController.text.trim().isNotEmpty
+                    ? videoUrlController.text.trim()
+                    : null;
+
+                final description = descriptionController.text.trim().isNotEmpty
+                    ? descriptionController.text.trim()
+                    : null;
+
+                final orderValue = int.tryParse(orderController.text) ?? 999;
+
                 if (isEdit) {
                   await _adminService.updateCategory(
                     category.id,
                     {
-                      'name': nameController.text,
-                      'order': int.parse(orderController.text),
+                      'name': nameController.text.trim(),
+                      'description': description,
+                      'order': orderValue,
                       'aliases': aliases,
+                      'imageUrls': imageUrls,
+                      'videoUrl': videoUrl,
                     },
                   );
                 } else {
                   await _adminService.createCategory(
                     CategoryModel(
                       id: '',
-                      name: nameController.text,
-                      order: int.parse(orderController.text),
-                      aliases: aliases,
+                      name: nameController.text.trim(),
+                      description: description,
+                      order: orderValue,
+                      aliases: aliases.isNotEmpty ? aliases : null,
+                      imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
+                      videoUrl: videoUrl,
                     ),
                   );
                 }
                 if (mounted) {
                   Navigator.pop(context);
                   _loadCategories();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isEdit
+                            ? 'Category updated successfully'
+                            : 'Category created successfully',
+                      ),
+                    ),
+                  );
                 }
               } catch (e) {
                 if (mounted) {

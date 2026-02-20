@@ -5,17 +5,24 @@ import 'package:resqnow_admin/features/admin/domain/entities/resource_entities.d
 class CategoryModel {
   final String id;
   final String name;
+  final String? description;
   final String? iconAsset;
+  final List<String> imageUrls;
+  final String? videoUrl;
   final int? order;
-  final List<String>? aliases;
+  final List<String> aliases;
 
   CategoryModel({
     required this.id,
     required this.name,
+    this.description,
     this.iconAsset,
+    List<String>? imageUrls,
+    this.videoUrl,
     this.order,
-    this.aliases,
-  });
+    List<String>? aliases,
+  }) : imageUrls = imageUrls ?? [],
+       aliases = aliases ?? [];
 
   CategoryEntity toEntity() {
     return CategoryEntity(
@@ -34,7 +41,10 @@ class CategoryModel {
     return CategoryModel(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
+      description: json['description'] as String?,
       iconAsset: json['iconAsset'] as String?,
+      imageUrls: List<String>.from(json['imageUrls'] as List? ?? []),
+      videoUrl: json['videoUrl'] as String?,
       order: json['order'] as int?,
       aliases: List<String>.from(json['aliases'] as List? ?? []),
     );
@@ -43,9 +53,12 @@ class CategoryModel {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
+      'description': description,
       'iconAsset': iconAsset,
+      'imageUrls': imageUrls,
+      'videoUrl': videoUrl,
       'order': order ?? 999,
-      'aliases': aliases ?? [],
+      'aliases': aliases,
     };
   }
 }
