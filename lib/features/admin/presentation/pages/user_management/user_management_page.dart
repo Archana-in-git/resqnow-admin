@@ -974,7 +974,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   Future<void> _suspendUser(AdminUserModel user) async {
     try {
-      await _adminService.updateUser(user.uid, {'accountStatus': 'suspended'});
+      await _adminService.suspendUser(user.uid, 'Suspended by admin');
       _loadUsers();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -995,7 +995,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   Future<void> _reactivateUser(AdminUserModel user) async {
     try {
-      await _adminService.updateUser(user.uid, {'accountStatus': 'active'});
+      await _adminService.reactivateUser(user.uid);
       _loadUsers();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

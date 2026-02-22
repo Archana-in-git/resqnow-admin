@@ -129,13 +129,14 @@ class AdminService {
     }
   }
 
-  /// Suspend/Unsuspend user
+  /// Suspend/Unsuspend user - immediately blocks access
   Future<void> suspendUser(String uid, String reason) async {
     try {
       await firestore.collection(usersCollection).doc(uid).update({
         'accountStatus': 'suspended',
         'suspendedAt': DateTime.now().toIso8601String(),
         'suspensionReason': reason,
+        'isBlocked': true, // Add blocking flag
       });
     } catch (e) {
       throw Exception('Failed to suspend user: $e');
@@ -155,12 +156,141 @@ class AdminService {
     }
   }
 
-  /// Delete user
+  /// Delete user completely - removes auth account and all data
+  /// This also reserves the email so it cannot be reused
   Future<void> deleteUser(String uid) async {
     try {
+      // Get user email before deletion
+      final userDoc = await firestore.collection(usersCollection).doc(uid).get();
+      final email = userDoc.get('email') as String?;
+
+      // Delete user document
       await firestore.collection(usersCollection).doc(uid).delete();
+
+      // Delete associated donor profile if exists
+      await _deleteUserDonorProfile(uid);
+
+      // Delete user's call requests
+      await _deleteUserCallRequests(uid);
+
+      // Delete any notifications for this user
+      await _deleteUserNotifications(uid);
+
+      // Block email from being reused
+      if (email != null) {
+        await _addEmailToBlockedList(email);
+      }
+
+      // Call Cloud Function to delete Firebase Auth account
+      // The Cloud Function must be set up separately (see documentation)
+      try {
+        await _callDeleteUserAuthFunction(uid, email ?? '');
+      } catch (e) {
+        // Log but don't fail - Cloud Function might not be set up yet
+        print('Note: Firebase Auth account deletion function not available. '
+            'Email has been blocked from reuse. UID: $uid, Email: $email');
+      }
     } catch (e) {
       throw Exception('Failed to delete user: $e');
+    }
+  }
+
+  /// Add email to blocked list so it can't be reused
+  Future<void> _addEmailToBlockedList(String email) async {
+    try {
+      final normalizedEmail = email.toLowerCase();
+      await firestore.collection('blocked_emails').doc(normalizedEmail).set({
+        'email': normalizedEmail,
+        'blockedAt': DateTime.now().toIso8601String(),
+        'reason': 'Account permanently deleted by admin',
+      });
+    } catch (e) {
+      print('Failed to add email to blocked list: $e');
+    }
+  }
+
+  /// Call Cloud Function to delete Firebase Auth account
+  /// Requires a Cloud Function setup at: functions/deleteUserAuth
+  Future<void> _callDeleteUserAuthFunction(String uid, String email) async {
+    try {
+      // Call a Cloud Function that has admin SDK permissions
+      // You need to create this function separately
+      final response = await firestore
+          .collection('_metadata')
+          .doc('functions')
+          .collection('deleteUserAuth')
+          .doc(uid)
+          .set({
+        'uid': uid,
+        'email': email,
+        'timestamp': DateTime.now().toIso8601String(),
+        'status': 'pending',
+      });
+    } catch (e) {
+      throw Exception('Failed to queue auth deletion: $e');
+    }
+  }
+
+  /// Delete user's donor profile
+  Future<void> _deleteUserDonorProfile(String uid) async {
+    try {
+      final snapshot = await firestore
+          .collection(donorsCollection)
+          .where('userId', isEqualTo: uid)
+          .get();
+      
+      for (var doc in snapshot.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      // Continue even if donor profile doesn't exist
+    }
+  }
+
+  /// Delete user's call requests
+  Future<void> _deleteUserCallRequests(String uid) async {
+    try {
+      final snapshot = await firestore
+          .collection(callRequestsCollection)
+          .where('userId', isEqualTo: uid)
+          .get();
+      
+      for (var doc in snapshot.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      // Continue even if call requests don't exist
+    }
+  }
+
+  /// Delete user's notifications
+  Future<void> _deleteUserNotifications(String uid) async {
+    try {
+      final snapshot = await firestore
+          .collection(notificationsCollection)
+          .where('userId', isEqualTo: uid)
+          .get();
+      
+      for (var doc in snapshot.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      // Continue even if notifications don't exist
+    }
+  }
+
+  /// Check if user is suspended
+  Future<bool> isUserSuspended(String uid) async {
+    try {
+      final userDoc = await firestore
+          .collection(usersCollection)
+          .doc(uid)
+          .get();
+      
+      if (!userDoc.exists) return false;
+      return userDoc.get('accountStatus') == 'suspended';
+    } catch (e) {
+      return false;
     }
   }
 

@@ -37,6 +37,19 @@ class AdminAuthController with ChangeNotifier {
   Future<void> _checkAuthState() async {
     _currentUser = _auth.currentUser;
     if (_currentUser != null) {
+      // Check if user is suspended
+      final isSuspended = await _isUserSuspended(_currentUser!.uid);
+      if (isSuspended) {
+        // Suspend user immediately
+        await _auth.signOut();
+        _currentUser = null;
+        _currentUserRole = null;
+        _isAuthenticated = false;
+        _error = 'Your account has been suspended.';
+        notifyListeners();
+        return;
+      }
+
       await _fetchUserRole();
       _isAuthenticated = true;
     } else {
@@ -63,6 +76,25 @@ class AdminAuthController with ChangeNotifier {
       _error = 'Failed to fetch user role: $e';
     }
     notifyListeners();
+  }
+
+  /// Check if user is suspended/blocked
+  Future<bool> _isUserSuspended(String uid) async {
+    try {
+      final doc = await _firestore
+          .collection(usersCollection)
+          .doc(uid)
+          .get();
+
+      if (!doc.exists) return true; // User deleted
+
+      final accountStatus = doc.get('accountStatus') as String?;
+      final isBlocked = doc.get('isBlocked') as bool? ?? false;
+
+      return accountStatus == 'suspended' || isBlocked;
+    } catch (e) {
+      return false;
+    }
   }
 
   /// Login with email and password
@@ -93,6 +125,18 @@ class AdminAuthController with ChangeNotifier {
         _currentUserRole = null;
         _isAuthenticated = false;
         _error = 'Access denied. Admin role required.';
+        notifyListeners();
+        return false;
+      }
+
+      // Check if user is suspended/blocked
+      final isSuspended = await _isUserSuspended(_currentUser!.uid);
+      if (isSuspended) {
+        await _auth.signOut();
+        _currentUser = null;
+        _currentUserRole = null;
+        _isAuthenticated = false;
+        _error = 'Your account has been suspended. Contact admin for details.';
         notifyListeners();
         return false;
       }

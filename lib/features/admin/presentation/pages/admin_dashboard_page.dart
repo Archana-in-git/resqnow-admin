@@ -135,6 +135,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     _callRequestStatsFuture = _adminService.getCallRequestStats();
   }
 
+  void _refreshAllData() {
+    setState(() {
+      _initializeFutures();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Dashboard refreshed'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 900;
@@ -793,23 +805,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       ),
                       Row(
                         children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(8),
-                            child: Icon(
-                              Icons.refresh,
-                              size: 20,
-                              color: AdminDashboardColors.textSecondary,
+                          GestureDetector(
+                            onTap: _refreshAllData,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              padding: const EdgeInsets.all(8),
+                              child: Icon(
+                                Icons.refresh,
+                                size: 20,
+                                color: AdminDashboardColors.textSecondary,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
