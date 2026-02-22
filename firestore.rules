@@ -172,6 +172,14 @@ service cloud.firestore {
     }
 
     // ================================
+    // 🚫 BLOCKED EMAILS (User Deletion)
+    // ================================
+    match /blocked_emails/{document=**} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ================================
     // ❌ Catch All
     // ================================
     match /{document=**} {
