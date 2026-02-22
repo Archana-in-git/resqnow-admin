@@ -1,0 +1,181 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ================================
+    // 🔐 Helper Functions
+    // ================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    // ================================
+    // 👤 USERS
+    // ================================
+    match /users/{userId} {
+
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+                    request.auth.uid == userId;
+
+      allow update: if (
+                        isAuthenticated() &&
+                        request.auth.uid == userId &&
+                        !("role" in request.resource.data.diff(resource.data).changedKeys())
+                     ) || isAdmin();
+
+      allow delete: if isAdmin();
+
+      // Subcollection: user chats
+      match /chats/{chatId} {
+        allow read, write: if isAuthenticated() &&
+                           request.auth.uid == userId;
+      }
+
+      // Subcollection: user call requests
+      match /call_requests/{requestId} {
+        allow read, write: if isAuthenticated() &&
+                           request.auth.uid == userId;
+      }
+    }
+
+    // ================================
+    // 👥 DONORS
+    // ================================
+    match /donors/{donorId} {
+
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+                    request.auth.uid == donorId;
+
+      allow update: if isAuthenticated() &&
+                    request.auth.uid == donorId;
+
+      allow delete: if isAdmin();
+    }
+
+    // ================================
+    // 📞 CALL REQUESTS
+    // ================================
+    match /call_requests/{requestId} {
+
+      allow create: if isAuthenticated() &&
+                    request.auth.uid == request.resource.data.requesterId;
+
+      allow read: if isAuthenticated() &&
+                  (
+                    request.auth.uid == resource.data.requesterId ||
+                    request.auth.uid == resource.data.donorId ||
+                    isAdmin()
+                  );
+
+      allow update: if isAdmin();
+
+      allow delete: if isAdmin();
+    }
+
+    // ================================
+    // 🔔 NOTIFICATIONS
+    // ================================
+    match /notifications/{notificationId} {
+
+      allow read: if isAuthenticated() &&
+                  (
+                    resource.data.userId == request.auth.uid ||
+                    isAdmin()
+                  );
+
+      allow create: if isAdmin();
+
+      allow update: if isAuthenticated() &&
+                    resource.data.userId == request.auth.uid &&
+                    request.resource.data.userId == resource.data.userId &&
+                    request.resource.data.title == resource.data.title &&
+                    request.resource.data.message == resource.data.message &&
+                    request.resource.data.type == resource.data.type &&
+                    request.resource.data.createdAt == resource.data.createdAt &&
+                    request.resource.data.isRead in [true, false];
+
+      allow delete: if isAdmin();
+    }
+
+    // ================================
+    // 📚 PUBLIC READ COLLECTIONS
+    // ================================
+    match /categories/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /medical_conditions/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /conditions/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /resources/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /emergency_numbers/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ================================
+    // 💬 GLOBAL CHATS
+    // ================================
+    match /chats/{doc} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // ================================
+    // 📊 LOGGING & ANALYTICS
+    // ================================
+    match /user_sessions/{doc} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /emergency_logs/{doc} {
+      allow write: if isAuthenticated();
+      allow read: if isAdmin();
+    }
+
+    match /search_logs/{doc} {
+      allow write: if isAuthenticated();
+      allow read: if isAdmin();
+    }
+
+    match /user_activity/{doc} {
+      allow write: if isAuthenticated() &&
+                    request.auth.uid == doc;
+      allow read: if isAdmin();
+    }
+
+    match /admin_audit_logs/{doc} {
+      allow read, write: if isAdmin();
+    }
+
+    // ================================
+    // ❌ Catch All
+    // ================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:resqnow_admin/features/authentication/controllers/admin_auth_controller.dart';
 import 'package:resqnow_admin/features/admin/presentation/pages/blood_donor_management/blood_donor_management_page.dart';
+import 'package:resqnow_admin/features/admin/presentation/pages/blood_donor_management/call_request_management_page.dart';
 import 'package:resqnow_admin/features/admin/presentation/pages/user_management/user_management_page.dart';
 import 'package:resqnow_admin/features/admin/presentation/pages/category_management/category_management_page.dart';
 import 'package:resqnow_admin/features/admin/presentation/pages/emergency_numbers_management/emergency_numbers_management_page.dart';
 import 'package:resqnow_admin/features/admin/presentation/pages/resources_management/resources_management_page.dart';
 import 'package:resqnow_admin/features/admin/presentation/pages/conditions_management/conditions_management_page.dart';
 import 'package:resqnow_admin/features/admin/presentation/pages/home_config_management/home_config_management_page.dart';
+import 'package:resqnow_admin/core/services/admin_service.dart';
+import 'package:resqnow_admin/features/admin/presentation/widgets/analytics_widgets.dart';
+import 'package:resqnow_admin/features/admin/data/models/analytics_model.dart'
+    as models;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-/// Admin Dashboard Home Page
+/// Admin Dashboard Home Page with Analytics
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({Key? key}) : super(key: key);
 
@@ -19,33 +26,28 @@ class AdminDashboardPage extends StatefulWidget {
 
 // Admin Dashboard color constants based on app theme
 class AdminDashboardColors {
-  // Primary theme colors
-  static const Color primaryGradientStart = Color(0xFF00796B); // Teal primary
-  static const Color primaryGradientEnd = Color(0xFF004D4A); // Darker teal
-  static const Color accentColor = Color(0xFFD32F2F); // Red alert
-  static const Color backgroundColor = Color(0xFFFAFAFA); // Soft white
-
-  // Text colors
-  static const Color textPrimary = Color(0xFF212121); // Dark gray
-  static const Color textSecondary = Color(0xFF757575); // Muted gray
-  static const Color dividerColor = Color(0xFFE0E0E0); // Light gray
-
-  // Status colors
-  static const Color success = Color(0xFF388E3C); // Green
-  static const Color warning = Color(0xFFFFA000); // Amber
-  static const Color emergency = Color(0xFFB71C1C); // Emergency dark red
-
-  // Soft pastel colors for cards
-  static const Color softTeal = Color(0xFF80CBC4);
-  static const Color softBlue = Color(0xFF81D4FA);
-  static const Color softPurple = Color(0xFFCE93D8);
-  static const Color softPink = Color(0xFFF48FB1);
-  static const Color softOrange = Color(0xFFFFB74D);
-  static const Color softGreen = Color(0xFFA5D6A7);
+  static const Color primaryGradientStart = Color(0xFF00796B);
+  static const Color primaryGradientEnd = Color(0xFF004D4A);
+  static const Color accentColor = Color(0xFFD32F2F);
+  static const Color backgroundColor = Color(0xFFFAFAFA);
+  static const Color textPrimary = Color(0xFF212121);
+  static const Color textSecondary = Color(0xFF757575);
+  static const Color dividerColor = Color(0xFFE0E0E0);
+  static const Color success = Color(0xFF388E3C);
+  static const Color warning = Color(0xFFFFA000);
+  static const Color emergency = Color(0xFFB71C1C);
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
   int _selectedMenuIndex = 0;
+  late AdminService _adminService;
+  late Future<models.AnalyticsStats> _analyticsStatsFuture;
+  late Future<models.UserGrowthData> _userGrowthFuture;
+  late Future<models.EmergencyTrendData> _emergencyTrendFuture;
+  late Future<List<models.TopConditionData>> _topConditionsFuture;
+  late Future<models.ContentStatusMetrics> _contentStatusFuture;
+  late Future<models.RealTimeActivityPanel> _realTimeActivityFuture;
+  late Future<Map<String, int>> _callRequestStatsFuture;
 
   final List<AdminMenuItem> _menuItems = [
     AdminMenuItem(
@@ -59,56 +61,84 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       icon: Icons.people,
       label: 'User Management',
       description: 'Manage user accounts and roles',
-      color: const Color(0xFF0288D1), // Light blue
+      color: const Color(0xFF0288D1),
       lightColor: const Color(0xFFE1F5FE),
     ),
     AdminMenuItem(
       icon: Icons.bloodtype,
       label: 'Blood Donors',
       description: 'Manage blood donor profiles',
-      color: AdminDashboardColors.accentColor, // Red alert
+      color: AdminDashboardColors.accentColor,
       lightColor: const Color(0xFFFFEBEE),
+    ),
+    AdminMenuItem(
+      icon: Icons.phone_in_talk,
+      label: 'Call Requests',
+      description: 'Manage donor call requests',
+      color: const Color(0xFF1565C0),
+      lightColor: const Color(0xFFBBDEFB),
     ),
     AdminMenuItem(
       icon: Icons.list,
       label: 'Categories',
       description: 'Manage medical categories',
-      color: AdminDashboardColors.warning, // Amber
+      color: AdminDashboardColors.warning,
       lightColor: const Color(0xFFFFF8E1),
     ),
     AdminMenuItem(
       icon: Icons.emergency,
       label: 'Emergency Numbers',
       description: 'Manage emergency contacts',
-      color: AdminDashboardColors.emergency, // Emergency red
+      color: AdminDashboardColors.emergency,
       lightColor: const Color(0xFFFFCDD2),
     ),
     AdminMenuItem(
       icon: Icons.medical_services,
       label: 'First Aid Resources',
       description: 'Manage first aid resources',
-      color: const Color(0xFF1976D2), // Blue
+      color: const Color(0xFF1976D2),
       lightColor: const Color(0xFFE3F2FD),
     ),
     AdminMenuItem(
       icon: Icons.health_and_safety,
       label: 'Medical Conditions',
       description: 'Manage medical conditions',
-      color: AdminDashboardColors.success, // Green
+      color: AdminDashboardColors.success,
       lightColor: const Color(0xFFC8E6C9),
     ),
     AdminMenuItem(
       icon: Icons.home,
       label: 'Home Configuration',
       description: 'Configure home page layout',
-      color: AdminDashboardColors.primaryGradientEnd, // Darker teal
+      color: AdminDashboardColors.primaryGradientEnd,
       lightColor: const Color(0xFFB2DFDB),
     ),
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _adminService = AdminService(
+      firestore: FirebaseFirestore.instance,
+      auth: FirebaseAuth.instance,
+    );
+    _initializeFutures();
+  }
+
+  void _initializeFutures() {
+    _analyticsStatsFuture = _adminService.getAnalyticsStats();
+    _userGrowthFuture = _adminService.getUserGrowthData();
+    _emergencyTrendFuture = _adminService.getEmergencyTrendData();
+    _topConditionsFuture = _adminService.getTopConditions();
+    _contentStatusFuture = _adminService.getContentStatusMetrics();
+    _realTimeActivityFuture = _adminService.getRealTimeActivityData();
+    _callRequestStatsFuture = _adminService.getCallRequestStats();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 900;
+    final isTablet = MediaQuery.of(context).size.width < 1400;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -118,25 +148,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF9DD9D2).withOpacity(0.5), // Soft teal
-              const Color(0xFFAFD3E8).withOpacity(0.4), // Soft blue
-              const Color(0xFFC9B8E0).withOpacity(0.4), // Soft lavender
+              const Color(0xFF9DD9D2).withOpacity(0.5),
+              const Color(0xFFAFD3E8).withOpacity(0.4),
+              const Color(0xFFC9B8E0).withOpacity(0.4),
             ],
           ),
         ),
         child: Row(
           children: [
-            // LEFT SIDEBAR
             if (!isMobile) _buildSidebar(context),
-
-            // MAIN CONTENT
             Expanded(
               child: CustomScrollView(
                 slivers: [
-                  // Header
                   _buildModernAppBar(context),
-
-                  // Main Content
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -146,66 +170,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Row 1: Two large cards
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildLargeCard(
-                                  context,
-                                  menuItem: _menuItems[0],
-                                  index: 0,
-                                ),
-                              ),
-                              const SizedBox(width: 20),
-                              Expanded(
-                                child: _buildLargeCard(
-                                  context,
-                                  menuItem: _menuItems[1],
-                                  index: 1,
-                                ),
-                              ),
-                            ],
+                          // Section Title
+                          const Text(
+                            'Dashboard Analytics',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: AdminDashboardColors.textPrimary,
+                            ),
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 20),
 
-                          // Row 2: Large left card + 2x2 grid of small cards
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: _buildLargeCard(
-                                  context,
-                                  menuItem: _menuItems[2],
-                                  index: 2,
-                                  minHeight: 320,
-                                ),
-                              ),
-                              const SizedBox(width: 20),
-                              Expanded(
-                                child: GridView.count(
-                                  crossAxisCount: 2,
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  crossAxisSpacing: 14,
-                                  mainAxisSpacing: 14,
-                                  childAspectRatio: 1.0,
-                                  children: List.generate(
-                                    4,
-                                    (idx) => _buildSmallStatCard(
-                                      context,
-                                      menuItem: _menuItems[3 + idx],
-                                      index: 3 + idx,
-                                    ),
+                          // Key Statistics Cards
+                          _buildStatisticsSection(),
+                          const SizedBox(height: 28),
+
+                          // Charts and Analytics Row
+                          if (!isTablet)
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(flex: 2, child: _buildChartsColumn()),
+                                const SizedBox(width: 20),
+                                Expanded(
+                                  flex: 1,
+                                  child: Column(
+                                    children: [
+                                      _buildRealTimeActivitySection(),
+                                      const SizedBox(height: 20),
+                                      _buildContentStatusSection(),
+                                    ],
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
+                              ],
+                            )
+                          else
+                            Column(
+                              children: [
+                                _buildChartsColumn(),
+                                const SizedBox(height: 20),
+                                _buildRealTimeActivitySection(),
+                                const SizedBox(height: 20),
+                                _buildContentStatusSection(),
+                              ],
+                            ),
 
-                          // Row 3: Wide promotional card
-                          _buildWidePromotionalCard(context),
+                          const SizedBox(height: 28),
+
+                          // Push Notification Control
+                          _buildNotificationControlSection(),
+                          const SizedBox(height: 28),
+
+                          // Management Shortcuts
+                          _buildManagementShortcuts(),
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -220,11 +237,411 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  Widget _buildStatisticsSection() {
+    return FutureBuilder<models.AnalyticsStats>(
+      future: _analyticsStatsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        final stats = snapshot.data ?? models.AnalyticsStats.empty();
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              StatCard(
+                icon: Icons.people,
+                title: 'Total Users',
+                value: stats.totalUsers.toString(),
+                description: 'Registered users',
+                growthPercent: stats.userGrowthPercent,
+                backgroundColor: const Color(0xFFE1F5FE),
+                iconColor: const Color(0xFF0288D1),
+              ),
+              const SizedBox(width: 16),
+              StatCard(
+                icon: Icons.person_add,
+                title: 'New Users',
+                value: stats.newUsersLastWeek.toString(),
+                description: 'Last 7 days',
+                growthPercent: 2.5,
+                backgroundColor: const Color(0xFFC8E6C9),
+                iconColor: AdminDashboardColors.success,
+              ),
+              const SizedBox(width: 16),
+              StatCard(
+                icon: Icons.bloodtype,
+                title: 'Active Donors',
+                value: stats.activeDonors.toString(),
+                description: 'Available for donation',
+                growthPercent: stats.donorGrowthPercent,
+                backgroundColor: const Color(0xFFFFEBEE),
+                iconColor: AdminDashboardColors.accentColor,
+              ),
+              const SizedBox(width: 16),
+              StatCard(
+                icon: Icons.emergency_share,
+                title: 'Emergency Clicks',
+                value: stats.emergencyClicksToday.toString(),
+                description: 'Today',
+                growthPercent: stats.emergencyTrendsPercent,
+                backgroundColor: const Color(0xFFFFCDD2),
+                iconColor: AdminDashboardColors.emergency,
+              ),
+              const SizedBox(width: 16),
+              StatCard(
+                icon: Icons.trending_up,
+                title: 'Active Users',
+                value: stats.activeUsers.toString(),
+                description: 'Currently active',
+                growthPercent: stats.activeUsersPercent,
+                backgroundColor: const Color(0xFFF3E5F5),
+                iconColor: const Color(0xFF6A1B9A),
+              ),
+              const SizedBox(width: 16),
+              StatCard(
+                icon: Icons.search,
+                title: 'Top Searched',
+                value: stats.mostSearchedCondition.length > 15
+                    ? '${stats.mostSearchedCondition.substring(0, 15)}...'
+                    : stats.mostSearchedCondition,
+                description: 'Most searched condition',
+                backgroundColor: const Color(0xFFFFF8E1),
+                iconColor: AdminDashboardColors.warning,
+              ),
+              const SizedBox(width: 16),
+              // Call Request Stats Cards
+              _buildCallRequestStatsCards(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCallRequestStatsCards() {
+    return FutureBuilder<Map<String, int>>(
+      future: _callRequestStatsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return StatCard(
+            icon: Icons.phone_in_talk,
+            title: 'Loading...',
+            value: '...',
+            description: 'Call requests',
+            growthPercent: 0,
+            backgroundColor: const Color(0xFFBBDEFB),
+            iconColor: const Color(0xFF1565C0),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return const SizedBox.shrink();
+        }
+
+        final stats = snapshot.data ?? {};
+        final pending = stats['pending'] ?? 0;
+        final approved = stats['approved'] ?? 0;
+
+        return Row(
+          children: [
+            StatCard(
+              icon: Icons.hourglass_empty,
+              title: 'Pending Calls',
+              value: pending.toString(),
+              description: 'Awaiting approval',
+              growthPercent: 0,
+              backgroundColor: const Color(0xFFFFE0B2),
+              iconColor: Colors.orange,
+            ),
+            const SizedBox(width: 16),
+            StatCard(
+              icon: Icons.check_circle,
+              title: 'Approved Calls',
+              value: approved.toString(),
+              description: 'Ready to connect',
+              growthPercent: 0,
+              backgroundColor: const Color(0xFFC8E6C9),
+              iconColor: AdminDashboardColors.success,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildChartsColumn() {
+    return Column(
+      children: [
+        // User Growth Chart
+        FutureBuilder<models.UserGrowthData>(
+          future: _userGrowthFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(child: CircularProgressIndicator()),
+              );
+            }
+            final data =
+                snapshot.data ??
+                models.UserGrowthData(months: [], userCounts: []);
+            return UserGrowthChart(data: data);
+          },
+        ),
+        const SizedBox(height: 20),
+
+        // Emergency Trend Chart
+        FutureBuilder<models.EmergencyTrendData>(
+          future: _emergencyTrendFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(child: CircularProgressIndicator()),
+              );
+            }
+            final data =
+                snapshot.data ??
+                models.EmergencyTrendData(labels: [], counts: []);
+            return EmergencyTrendChart(data: data);
+          },
+        ),
+        const SizedBox(height: 20),
+
+        // Top Conditions Chart
+        FutureBuilder<List<models.TopConditionData>>(
+          future: _topConditionsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(child: CircularProgressIndicator()),
+              );
+            }
+            final data = snapshot.data ?? [];
+            return TopConditionsWidget(conditions: data);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRealTimeActivitySection() {
+    return FutureBuilder<models.RealTimeActivityPanel>(
+      future: _realTimeActivityFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        final data = snapshot.data;
+        if (data == null) {
+          return Container();
+        }
+        return RealTimeActivityPanelWidget(data: data);
+      },
+    );
+  }
+
+  Widget _buildContentStatusSection() {
+    return FutureBuilder<models.ContentStatusMetrics>(
+      future: _contentStatusFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        final data = snapshot.data;
+        if (data == null) {
+          return Container();
+        }
+        return ContentStatusWidget(metrics: data);
+      },
+    );
+  }
+
+  Widget _buildNotificationControlSection() {
+    return PushNotificationControlWidget(
+      onSendNotification: (title, message, recipientType, district) async {
+        try {
+          await _adminService.sendNotification(
+            title: title,
+            message: message,
+            recipientType: recipientType,
+            targetDistrict: district,
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Notification sent successfully'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Error: $e')));
+          }
+        }
+      },
+    );
+  }
+
+  Widget _buildManagementShortcuts() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _menuItems[6].color.withOpacity(0.15),
+            _menuItems[7].color.withOpacity(0.15),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Quick Access',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AdminDashboardColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Management Tools',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: AdminDashboardColors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildQuickAccessButton(1),
+                    _buildQuickAccessButton(2),
+                    _buildQuickAccessButton(3),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.dashboard_customize,
+                size: 40,
+                color: AdminDashboardColors.primaryGradientStart.withOpacity(
+                  0.3,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickAccessButton(int menuIndex) {
+    final item = _menuItems[menuIndex];
+    return SizedBox(
+      height: 40,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onMenuItemTap(menuIndex),
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(item.icon, size: 16, color: item.color),
+                const SizedBox(width: 6),
+                Text(
+                  item.label,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AdminDashboardColors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSidebar(BuildContext context) {
     return Container(
       width: 200,
       decoration: BoxDecoration(
-        color: const Color(0xFFB2DFDB).withOpacity(0.5), // Soft greenish teal
+        color: const Color(0xFFB2DFDB).withOpacity(0.5),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -239,7 +656,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Logo/Branding
           Padding(
             padding: const EdgeInsets.only(bottom: 24),
             child: Text(
@@ -252,8 +668,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               ),
             ),
           ),
-
-          // Menu Items
           Expanded(
             child: ListView.separated(
               separatorBuilder: (_, __) => const SizedBox(height: 4),
@@ -266,9 +680,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: () {
-                      setState(() {
-                        _selectedMenuIndex = index;
-                      });
+                      setState(() => _selectedMenuIndex = index);
                       _onMenuItemTap(index);
                     },
                     borderRadius: BorderRadius.circular(12),
@@ -317,303 +729,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ),
                 );
               },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLargeCard(
-    BuildContext context, {
-    required AdminMenuItem menuItem,
-    required int index,
-    double? minHeight,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _onMenuItemTap(index),
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          constraints: minHeight != null
-              ? BoxConstraints(minHeight: minHeight)
-              : null,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              // Header with icon
-              Container(
-                decoration: BoxDecoration(
-                  color: menuItem.lightColor,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.all(12),
-                child: Icon(menuItem.icon, color: menuItem.color, size: 28),
-              ),
-              const SizedBox(height: 16),
-
-              // Title
-              Text(
-                menuItem.label,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AdminDashboardColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-
-              // Description
-              const SizedBox(height: 8),
-              Text(
-                menuItem.description,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AdminDashboardColors.textSecondary,
-                  fontSize: 12,
-                  height: 1.4,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmallStatCard(
-    BuildContext context, {
-    required AdminMenuItem menuItem,
-    required int index,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _onMenuItemTap(index),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Circular colored icon
-              Container(
-                decoration: BoxDecoration(
-                  color: menuItem.lightColor,
-                  shape: BoxShape.circle,
-                ),
-                padding: const EdgeInsets.all(10),
-                child: Icon(menuItem.icon, color: menuItem.color, size: 22),
-              ),
-              const SizedBox(height: 10),
-
-              // Label
-              Text(
-                menuItem.label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AdminDashboardColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWidePromotionalCard(BuildContext context) {
-    // Combine the last 2 menu items into a wide promotional-style card
-    final item1 = _menuItems[6];
-    final item2 = _menuItems[7];
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            item1.color.withOpacity(0.15),
-            item2.color.withOpacity(0.15),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          // Left side - content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Management',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AdminDashboardColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Additional Settings',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AdminDashboardColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 40,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => _onMenuItemTap(6),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    item1.icon,
-                                    size: 16,
-                                    color: item1.color,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    item1.label,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color:
-                                              AdminDashboardColors.textPrimary,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: SizedBox(
-                        height: 40,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => _onMenuItemTap(7),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    item2.icon,
-                                    size: 16,
-                                    color: item2.color,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    item2.label,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color:
-                                              AdminDashboardColors.textPrimary,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Right side - decorative element
-          const SizedBox(width: 16),
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.settings,
-                size: 40,
-                color: AdminDashboardColors.primaryGradientStart.withOpacity(
-                  0.3,
-                ),
-              ),
             ),
           ),
         ],
@@ -678,7 +793,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       ),
                       Row(
                         children: [
-                          // Search icon
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
@@ -693,36 +807,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             ),
                             padding: const EdgeInsets.all(8),
                             child: Icon(
-                              Icons.search,
+                              Icons.refresh,
                               size: 20,
                               color: AdminDashboardColors.textSecondary,
                             ),
                           ),
                           const SizedBox(width: 8),
-
-                          // Notification icon
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(8),
-                            child: Icon(
-                              Icons.notifications_outlined,
-                              size: 20,
-                              color: AdminDashboardColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-
-                          // Profile menu
                           Consumer<AdminAuthController>(
                             builder: (context, authController, _) {
                               return PopupMenuButton<String>(
@@ -747,186 +837,36 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     backgroundColor: AdminDashboardColors
                                         .primaryGradientStart,
                                     child: Text(
-                                      authController.currentUser?.email
-                                              ?.substring(0, 1)
-                                              .toUpperCase() ??
-                                          'A',
+                                      (authController.currentUser?.email
+                                              ?.toUpperCase()[0] ??
+                                          'A'),
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 12,
                                       ),
                                     ),
                                   ),
                                 ),
                                 itemBuilder: (context) => [
-                                  PopupMenuItem<String>(
+                                  const PopupMenuItem<String>(
+                                    child: Text('Profile'),
                                     value: 'profile',
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            color: AdminDashboardColors
-                                                .primaryGradientStart
-                                                .withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          padding: const EdgeInsets.all(8),
-                                          child: Icon(
-                                            Icons.person,
-                                            size: 20,
-                                            color: AdminDashboardColors
-                                                .primaryGradientStart,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Text(
-                                                'Admin Account',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: AdminDashboardColors
-                                                      .textSecondary,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                authController
-                                                        .currentUser
-                                                        ?.email ??
-                                                    'Admin',
-                                                style: const TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: AdminDashboardColors
-                                                      .textPrimary,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    enabled: false,
+                                  ),
+                                  const PopupMenuItem<String>(
+                                    child: Text('Settings'),
+                                    value: 'settings',
                                   ),
                                   const PopupMenuDivider(),
-                                  PopupMenuItem<String>(
+                                  const PopupMenuItem<String>(
+                                    child: Text('Logout'),
                                     value: 'logout',
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            color: AdminDashboardColors
-                                                .accentColor
-                                                .withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          padding: const EdgeInsets.all(8),
-                                          child: Icon(
-                                            Icons.logout,
-                                            size: 20,
-                                            color: AdminDashboardColors
-                                                .accentColor,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          'Logout',
-                                          style: TextStyle(
-                                            color: AdminDashboardColors
-                                                .accentColor,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    onTap: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (context) => AlertDialog(
-                                          backgroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              16,
-                                            ),
-                                          ),
-                                          title: Row(
-                                            children: [
-                                              Icon(
-                                                Icons.logout,
-                                                color: AdminDashboardColors
-                                                    .accentColor,
-                                                size: 28,
-                                              ),
-                                              const SizedBox(width: 12),
-                                              const Text('Confirm Logout'),
-                                            ],
-                                          ),
-                                          content: const Text(
-                                            'Are you sure you want to logout of the admin dashboard?',
-                                            style: TextStyle(
-                                              color: AdminDashboardColors
-                                                  .textSecondary,
-                                            ),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context),
-                                              child: const Text(
-                                                'Cancel',
-                                                style: TextStyle(
-                                                  color: AdminDashboardColors
-                                                      .textSecondary,
-                                                ),
-                                              ),
-                                            ),
-                                            ElevatedButton(
-                                              onPressed: () {
-                                                Navigator.pop(context);
-                                                authController.signOut();
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor:
-                                                    AdminDashboardColors
-                                                        .accentColor,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 24,
-                                                      vertical: 12,
-                                                    ),
-                                              ),
-                                              child: const Text(
-                                                'Logout',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
                                   ),
                                 ],
+                                onSelected: (value) {
+                                  if (value == 'logout') {
+                                    authController.signOut();
+                                  }
+                                },
                               );
                             },
                           ),
@@ -948,37 +888,32 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     switch (index) {
       case 0:
-        // Dashboard - refresh current page
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('You are on the Dashboard')),
         );
         return;
       case 1:
-        // User Management
         pageToNavigate = const UserManagementPage();
         break;
       case 2:
-        // Blood Donor Management
         pageToNavigate = const BloodDonorManagementPage();
         break;
       case 3:
-        // Category Management
-        pageToNavigate = const CategoryManagementPage();
+        pageToNavigate = const CallRequestManagementPage();
         break;
       case 4:
-        // Emergency Numbers Management
-        pageToNavigate = const EmergencyNumbersManagementPage();
+        pageToNavigate = const CategoryManagementPage();
         break;
       case 5:
-        // Resources Management
-        pageToNavigate = const ResourcesManagementPage();
+        pageToNavigate = const EmergencyNumbersManagementPage();
         break;
       case 6:
-        // Conditions Management
-        pageToNavigate = const ConditionsManagementPage();
+        pageToNavigate = const ResourcesManagementPage();
         break;
       case 7:
-        // Home Config Management
+        pageToNavigate = const ConditionsManagementPage();
+        break;
+      case 8:
         pageToNavigate = const HomeConfigManagementPage();
         break;
       default:

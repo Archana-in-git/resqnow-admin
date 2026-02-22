@@ -132,12 +132,12 @@ class ConditionEntity extends Equatable {
   final String name;
   final String severity;
   final List<String> imageUrls;
-  final List<String> firstAidSteps;
+  final List<String> firstAidDescription;
   final List<String> doNotDo;
   final String? videoUrl;
-  final List<Map<String, String>> requiredKits;
-  final List<Map<String, String>> faqs;
-  final List<String> doctorTypes;
+  final List<Map<String, dynamic>> requiredKits;
+  final List<Map<String, dynamic>> faqs;
+  final List<String> doctorType;
   final String? hospitalLocatorLink;
   final DateTime createdAt;
   final DateTime? updatedAt;
@@ -147,12 +147,12 @@ class ConditionEntity extends Equatable {
     required this.name,
     required this.severity,
     required this.imageUrls,
-    required this.firstAidSteps,
+    required this.firstAidDescription,
     required this.doNotDo,
     this.videoUrl,
     required this.requiredKits,
     required this.faqs,
-    required this.doctorTypes,
+    required this.doctorType,
     this.hospitalLocatorLink,
     required this.createdAt,
     this.updatedAt,
@@ -164,12 +164,12 @@ class ConditionEntity extends Equatable {
     name,
     severity,
     imageUrls,
-    firstAidSteps,
+    firstAidDescription,
     doNotDo,
     videoUrl,
     requiredKits,
     faqs,
-    doctorTypes,
+    doctorType,
     hospitalLocatorLink,
     createdAt,
     updatedAt,

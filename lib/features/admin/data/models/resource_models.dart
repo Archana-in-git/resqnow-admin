@@ -100,10 +100,7 @@ class EmergencyNumberModel {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'number': number,
-    };
+    return {'name': name, 'number': number};
   }
 }
 
@@ -226,14 +223,14 @@ class ConditionModel {
   final String name;
   final String severity;
   final List<String> imageUrls;
-  final List<String> firstAidSteps;
+  final List<String> firstAidDescription;
   final List<String> doNotDo;
   final String? videoUrl;
-  final List<Map<String, String>> requiredKits;
-  final List<Map<String, String>> faqs;
-  final List<String> doctorTypes;
+  final List<Map<String, dynamic>> requiredKits;
+  final List<Map<String, dynamic>> faqs;
+  final List<String> doctorType;
   final String? hospitalLocatorLink;
-  final DateTime createdAt;
+  final DateTime? createdAt;
   final DateTime? updatedAt;
 
   ConditionModel({
@@ -241,14 +238,14 @@ class ConditionModel {
     required this.name,
     required this.severity,
     required this.imageUrls,
-    required this.firstAidSteps,
+    required this.firstAidDescription,
     required this.doNotDo,
     this.videoUrl,
     required this.requiredKits,
     required this.faqs,
-    required this.doctorTypes,
+    required this.doctorType,
     this.hospitalLocatorLink,
-    required this.createdAt,
+    this.createdAt,
     this.updatedAt,
   });
 
@@ -258,73 +255,109 @@ class ConditionModel {
       name: name,
       severity: severity,
       imageUrls: imageUrls,
-      firstAidSteps: firstAidSteps,
+      firstAidDescription: firstAidDescription,
       doNotDo: doNotDo,
       videoUrl: videoUrl,
       requiredKits: requiredKits,
       faqs: faqs,
-      doctorTypes: doctorTypes,
+      doctorType: doctorType,
       hospitalLocatorLink: hospitalLocatorLink,
-      createdAt: createdAt,
+      createdAt: createdAt ?? DateTime.now(),
       updatedAt: updatedAt,
     );
   }
 
   factory ConditionModel.fromJson(Map<String, dynamic> json) {
     // Helper function to convert Timestamp or String to DateTime
-    DateTime _parseDateTime(dynamic value) {
+    DateTime? _parseDateTime(dynamic value) {
       if (value == null) {
-        return DateTime.now();
+        return null;
       } else if (value is Timestamp) {
         return value.toDate();
       } else if (value is String && value.isNotEmpty) {
         try {
           return DateTime.parse(value);
         } catch (e) {
-          return DateTime.now();
+          return null;
         }
       } else if (value is int) {
-        // Handle unix timestamp in milliseconds or seconds
         try {
           if (value > 10000000000) {
-            // Likely milliseconds
             return DateTime.fromMillisecondsSinceEpoch(value);
           } else {
-            // Likely seconds
             return DateTime.fromMillisecondsSinceEpoch(value * 1000);
           }
         } catch (e) {
-          return DateTime.now();
+          return null;
         }
       }
-      return DateTime.now();
+      return null;
     }
 
-    return ConditionModel(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      severity: json['severity'] as String? ?? '',
-      imageUrls: List<String>.from(json['imageUrls'] as List? ?? []),
-      firstAidSteps: List<String>.from(json['firstAidSteps'] as List? ?? []),
-      doNotDo: List<String>.from(json['doNotDo'] as List? ?? []),
-      videoUrl: json['videoUrl'] as String?,
-      requiredKits: List<Map<String, String>>.from(
-        (json['requiredKits'] as List? ?? []).map(
-          (item) => Map<String, String>.from(item as Map),
+    try {
+      print(
+        '🔍 Deserializing condition: name=${json['name']}, severity=${json['severity']}',
+      );
+
+      // Safe list conversion for strings
+      List<String> _toStringList(dynamic value) {
+        try {
+          if (value == null) return [];
+          if (value is List) {
+            return value
+                .map((e) => e.toString().trim())
+                .where((e) => e.isNotEmpty)
+                .toList();
+          }
+          return [];
+        } catch (e) {
+          print('⚠️ Error converting to string list: $e');
+          return [];
+        }
+      }
+
+      // Safe list conversion for maps
+      List<Map<String, dynamic>> _toMapList(dynamic value) {
+        try {
+          if (value == null) return [];
+          if (value is List) {
+            return value
+                .where((item) => item is Map)
+                .map((item) => Map<String, dynamic>.from(item as Map))
+                .toList();
+          }
+          return [];
+        } catch (e) {
+          print('⚠️ Error converting to map list: $e');
+          return [];
+        }
+      }
+
+      return ConditionModel(
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        severity: json['severity'] as String? ?? 'low',
+        imageUrls: _toStringList(json['imageUrls']),
+        firstAidDescription: _toStringList(
+          json['firstAidDescription'] ?? json['firstAidSteps'],
         ),
-      ),
-      faqs: List<Map<String, String>>.from(
-        (json['faqs'] as List? ?? []).map(
-          (item) => Map<String, String>.from(item as Map),
-        ),
-      ),
-      doctorTypes: List<String>.from(json['doctorTypes'] as List? ?? []),
-      hospitalLocatorLink: json['hospitalLocatorLink'] as String?,
-      createdAt: _parseDateTime(json['createdAt']),
-      updatedAt: json['updatedAt'] != null
-          ? _parseDateTime(json['updatedAt'])
-          : null,
-    );
+        doNotDo: _toStringList(json['doNotDo']),
+        videoUrl: json['videoUrl'] as String?,
+        requiredKits: _toMapList(json['requiredKits']),
+        faqs: _toMapList(json['faqs']),
+        doctorType: _toStringList(json['doctorType'] ?? json['doctorTypes']),
+        hospitalLocatorLink: json['hospitalLocatorLink'] as String?,
+        createdAt: _parseDateTime(json['createdAt']),
+        updatedAt: json['updatedAt'] != null
+            ? _parseDateTime(json['updatedAt'])
+            : null,
+      );
+    } catch (e, stackTrace) {
+      print('❌ Error deserializing condition: $e');
+      print('Data: $json');
+      print('Stack: $stackTrace');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -333,14 +366,14 @@ class ConditionModel {
       'name': name,
       'severity': severity,
       'imageUrls': imageUrls,
-      'firstAidSteps': firstAidSteps,
+      'firstAidDescription': firstAidDescription,
       'doNotDo': doNotDo,
       'videoUrl': videoUrl,
       'requiredKits': requiredKits,
       'faqs': faqs,
-      'doctorTypes': doctorTypes,
+      'doctorType': doctorType,
       'hospitalLocatorLink': hospitalLocatorLink,
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
   }
