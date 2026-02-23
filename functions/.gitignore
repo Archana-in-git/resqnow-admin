@@ -1,0 +1,45 @@
+# ================================
+# 📦 NODE MODULES & DEPENDENCIES
+# ================================
+node_modules/
+package-lock.json
+yarn.lock
+npm-debug.log
+yarn-error.log
+
+# ================================
+# 🔐 ENVIRONMENT & SECRETS
+# ================================
+.env
+.env.local
+.env.*.local
+.runtimeconfig.json
+*.key
+*.pem
+secrets.json
+
+# ================================
+# 🔧 IDE & EDITOR FILES
+# ================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ================================
+# 🏗️ BUILD & DIST
+# ================================
+build/
+dist/
+lib/
+.firebase/
+
+# ================================
+# 📊 LOGS & DEBUG
+# ================================
+*.log
+firebase-debug.log
+.npm

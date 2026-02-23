@@ -1,14 +1,40 @@
+# ================================
+# 📦 GRADLE & BUILD SYSTEM
+# ================================
 gradle-wrapper.jar
 /.gradle
+/build/
 /captures/
 /gradlew
 /gradlew.bat
-/local.properties
-GeneratedPluginRegistrant.java
-.cxx/
 
-# Remember to never publicly share your keystore.
-# See https://flutter.dev/to/reference-keystore
+# ================================
+# 🔐 LOCAL CONFIGURATION
+# ================================
+/local.properties
 key.properties
 **/*.keystore
 **/*.jks
+**/*.p12
+
+# ================================
+# 🏗️ BUILD ARTIFACTS
+# ================================
+.cxx/
+GeneratedPluginRegistrant.java
+**/build/
+**/dist/
+
+# ================================
+# 🔧 IDE FILES
+# ================================
+.gradle/
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# ================================
+# 📊 LOGS
+# ================================
+*.log

@@ -1,3 +1,6 @@
+# ================================
+# 🏗️ XCODE BUILD SYSTEM
+# ================================
 **/dgph
 *.mode1v3
 *.mode2v3
@@ -7,14 +10,37 @@
 **/*sync/
 .sconsign.dblite
 .tags*
+
+# ================================
+# 🔧 IDE & PROJECT FILES
+# ================================
 **/.vagrant/
 **/DerivedData/
 Icon?
-**/Pods/
-**/.symlinks/
-profile
 xcuserdata
+profile
 **/.generated/
+**/*.xcworkspace/xcuserdata/
+
+# ================================
+# 📱 POD & DEPENDENCY MANAGEMENT
+# ================================
+**/Pods/
+Pods/
+**/.symlinks/
+Podfile.lock
+
+# ================================
+# 🔐 CERTIFICATES & KEYS
+# ================================
+*.p12
+*.cer
+*.key
+*.pem
+
+# ================================
+# 📦 FLUTTER SPECIFIC
+# ================================
 Flutter/App.framework
 Flutter/Flutter.framework
 Flutter/Flutter.podspec
@@ -24,10 +50,17 @@ Flutter/app.flx
 Flutter/app.zip
 Flutter/flutter_assets/
 Flutter/flutter_export_environment.sh
+
+# ================================
+# 📊 BUILD & LOGS
+# ================================
 ServiceDefinitions.json
 Runner/GeneratedPluginRegistrant.*
+*.log
 
-# Exceptions to above rules.
+# ================================
+# 📝 EXCEPTIONS (Keep these files)
+# ================================
 !default.mode1v3
 !default.mode2v3
 !default.pbxuser

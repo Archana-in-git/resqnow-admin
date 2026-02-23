@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:resqnow_admin/features/admin/data/models/admin_user_model.dart';
 import 'package:resqnow_admin/features/admin/data/models/blood_donor_model.dart';
 import 'package:resqnow_admin/features/admin/data/models/resource_models.dart';
@@ -10,6 +11,7 @@ import 'package:resqnow_admin/core/services/notification_service.dart';
 class AdminService {
   final FirebaseFirestore firestore;
   final FirebaseAuth auth;
+  final FirebaseFunctions functions;
 
   // Firestore collection names (matching main app structure)
   static const String usersCollection = 'users';
@@ -22,7 +24,11 @@ class AdminService {
   static const String callRequestsCollection = 'call_requests';
   static const String notificationsCollection = 'notifications';
 
-  AdminService({required this.firestore, required this.auth});
+  AdminService({
+    required this.firestore,
+    required this.auth,
+    FirebaseFunctions? functions,
+  }) : functions = functions ?? FirebaseFunctions.instance;
 
   /// Verify current user is an admin
   Future<bool> isCurrentUserAdmin() async {
@@ -132,12 +138,22 @@ class AdminService {
   /// Suspend/Unsuspend user - immediately blocks access
   Future<void> suspendUser(String uid, String reason) async {
     try {
+      await functions.httpsCallable('suspendUserAccount').call({
+        'uid': uid,
+        'reason': reason,
+      });
+
       await firestore.collection(usersCollection).doc(uid).update({
         'accountStatus': 'suspended',
-        'suspendedAt': DateTime.now().toIso8601String(),
+        'suspendedAt': FieldValue.serverTimestamp(),
         'suspensionReason': reason,
-        'isBlocked': true, // Add blocking flag
+        'isBlocked': true,
       });
+    } on FirebaseFunctionsException catch (e) {
+      final detail = e.details != null ? ' | details: ${e.details}' : '';
+      throw Exception(
+        'Suspend failed [${e.code}]: ${e.message ?? 'Unknown function error'}$detail',
+      );
     } catch (e) {
       throw Exception('Failed to suspend user: $e');
     }
@@ -146,88 +162,37 @@ class AdminService {
   /// Reactivate user
   Future<void> reactivateUser(String uid) async {
     try {
+      await functions.httpsCallable('reactivateUserAccount').call({'uid': uid});
+
       await firestore.collection(usersCollection).doc(uid).update({
         'accountStatus': 'active',
         'suspendedAt': null,
         'suspensionReason': null,
+        'isBlocked': false,
       });
+    } on FirebaseFunctionsException catch (e) {
+      final detail = e.details != null ? ' | details: ${e.details}' : '';
+      throw Exception(
+        'Reactivation failed [${e.code}]: ${e.message ?? 'Unknown function error'}$detail',
+      );
     } catch (e) {
       throw Exception('Failed to reactivate user: $e');
     }
   }
 
   /// Delete user completely - removes auth account and all data
-  /// This also reserves the email so it cannot be reused
   Future<void> deleteUser(String uid) async {
     try {
-      // Get user email before deletion
-      final userDoc = await firestore.collection(usersCollection).doc(uid).get();
-      final email = userDoc.get('email') as String?;
-
-      // Delete user document
-      await firestore.collection(usersCollection).doc(uid).delete();
-
-      // Delete associated donor profile if exists
-      await _deleteUserDonorProfile(uid);
-
-      // Delete user's call requests
-      await _deleteUserCallRequests(uid);
-
-      // Delete any notifications for this user
-      await _deleteUserNotifications(uid);
-
-      // Block email from being reused
-      if (email != null) {
-        await _addEmailToBlockedList(email);
-      }
-
-      // Call Cloud Function to delete Firebase Auth account
-      // The Cloud Function must be set up separately (see documentation)
-      try {
-        await _callDeleteUserAuthFunction(uid, email ?? '');
-      } catch (e) {
-        // Log but don't fail - Cloud Function might not be set up yet
-        print('Note: Firebase Auth account deletion function not available. '
-            'Email has been blocked from reuse. UID: $uid, Email: $email');
-      }
+      await functions.httpsCallable('deleteUserAccountCompletely').call({
+        'uid': uid,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      final detail = e.details != null ? ' | details: ${e.details}' : '';
+      throw Exception(
+        'Delete failed [${e.code}]: ${e.message ?? 'Unknown function error'}$detail',
+      );
     } catch (e) {
       throw Exception('Failed to delete user: $e');
-    }
-  }
-
-  /// Add email to blocked list so it can't be reused
-  Future<void> _addEmailToBlockedList(String email) async {
-    try {
-      final normalizedEmail = email.toLowerCase();
-      await firestore.collection('blocked_emails').doc(normalizedEmail).set({
-        'email': normalizedEmail,
-        'blockedAt': DateTime.now().toIso8601String(),
-        'reason': 'Account permanently deleted by admin',
-      });
-    } catch (e) {
-      print('Failed to add email to blocked list: $e');
-    }
-  }
-
-  /// Call Cloud Function to delete Firebase Auth account
-  /// Requires a Cloud Function setup at: functions/deleteUserAuth
-  Future<void> _callDeleteUserAuthFunction(String uid, String email) async {
-    try {
-      // Call a Cloud Function that has admin SDK permissions
-      // You need to create this function separately
-      final response = await firestore
-          .collection('_metadata')
-          .doc('functions')
-          .collection('deleteUserAuth')
-          .doc(uid)
-          .set({
-        'uid': uid,
-        'email': email,
-        'timestamp': DateTime.now().toIso8601String(),
-        'status': 'pending',
-      });
-    } catch (e) {
-      throw Exception('Failed to queue auth deletion: $e');
     }
   }
 
@@ -238,7 +203,7 @@ class AdminService {
           .collection(donorsCollection)
           .where('userId', isEqualTo: uid)
           .get();
-      
+
       for (var doc in snapshot.docs) {
         await doc.reference.delete();
       }
@@ -254,7 +219,7 @@ class AdminService {
           .collection(callRequestsCollection)
           .where('userId', isEqualTo: uid)
           .get();
-      
+
       for (var doc in snapshot.docs) {
         await doc.reference.delete();
       }
@@ -270,7 +235,7 @@ class AdminService {
           .collection(notificationsCollection)
           .where('userId', isEqualTo: uid)
           .get();
-      
+
       for (var doc in snapshot.docs) {
         await doc.reference.delete();
       }
@@ -286,7 +251,7 @@ class AdminService {
           .collection(usersCollection)
           .doc(uid)
           .get();
-      
+
       if (!userDoc.exists) return false;
       return userDoc.get('accountStatus') == 'suspended';
     } catch (e) {

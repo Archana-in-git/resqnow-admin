@@ -59,10 +59,7 @@ class UserCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 user.email,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -87,17 +84,25 @@ class UserCard extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           'Joined: ${UserHelper.formatDate(user.createdAt)}',
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey[700],
-          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[700]),
         ),
         if (user.lastLogin != null)
           Text(
             'Last login: ${UserHelper.getLastLoginText(user.lastLogin)}',
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey[600],
+            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+          ),
+        if (user.isBlocked && user.suspensionReason != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Reason: ${user.suspensionReason}',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.red[700],
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
       ],
@@ -105,20 +110,20 @@ class UserCard extends StatelessWidget {
   }
 
   Widget _buildActionMenu() {
+    final isBlockedOrSuspended =
+        user.isBlocked || user.accountStatus == 'suspended';
+
     return PopupMenuButton(
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'view', child: Text('View Details')),
         const PopupMenuItem(value: 'edit', child: Text('Edit')),
         PopupMenuItem(
-          value: user.accountStatus == 'suspended' ? 'reactivate' : 'suspend',
-          child: Text(user.accountStatus == 'suspended' ? 'Reactivate' : 'Suspend'),
+          value: isBlockedOrSuspended ? 'reactivate' : 'suspend',
+          child: Text(isBlockedOrSuspended ? 'Reactivate' : 'Suspend'),
         ),
         const PopupMenuItem(
           value: 'delete',
-          child: Text(
-            'Delete',
-            style: TextStyle(color: Colors.red),
-          ),
+          child: Text('Delete', style: TextStyle(color: Colors.red)),
         ),
       ],
       onSelected: (value) => onActionSelected(value),
@@ -196,13 +201,7 @@ class UserStatsWidget extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
       ],
     );
   }
@@ -225,20 +224,17 @@ class RoleStatsWidget extends StatelessWidget {
         children: [
           const Text(
             'User Roles Distribution',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: stats.entries
-                .map((entry) => _buildRoleStat(
-                      role: entry.key,
-                      count: entry.value,
-                    ))
+                .map(
+                  (entry) =>
+                      _buildRoleStat(role: entry.key, count: entry.value),
+                )
                 .toList(),
           ),
         ],
@@ -246,19 +242,13 @@ class RoleStatsWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildRoleStat({
-    required String role,
-    required int count,
-  }) {
+  Widget _buildRoleStat({required String role, required int count}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: UserHelper.getRoleBgColor(role),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: UserHelper.getRoleColor(role),
-          width: 1.5,
-        ),
+        border: Border.all(color: UserHelper.getRoleColor(role), width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -295,26 +285,16 @@ class EmptyUserListWidget extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.person_search_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.person_search_outlined, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'No users found',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
             'Try adjusting your filters',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
       ),

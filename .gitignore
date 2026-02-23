@@ -1,37 +1,63 @@
-# Miscellaneous
+# ================================
+# 🔐 SENSITIVE FILES
+# ================================
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.p12
+secrets*.json
+firebase-key.json
+google-services.json
+
+# ================================
+# 📦 DEPENDENCY DIRECTORIES
+# ================================
+node_modules/
+.pub-cache/
+.pub/
+/build/
+/dist/
+
+# ================================
+# 🔧 IDE & EDITOR FILES
+# ================================
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
 *.class
 *.log
 *.pyc
 *.swp
+*.swo
+*~
 .DS_Store
+Thumbs.db
 .atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+.history/
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
+# ================================
+# 📱 FLUTTER/DART RELATED
+# ================================
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
+pubspec.lock
+.coverage/
+
+# ================================
+# 🏗️ BUILD ARTIFACTS
+# ================================
+.build/
+.buildlog/
+.svn/
+.swiftpm/
+migrate_working_dir/
 
 # Symbolication related
 app.*.symbols
@@ -39,7 +65,36 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# ================================
+# 🤐 PLATFORM-SPECIFIC BUILDS
+# ================================
+# Android
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.gradle/
+/android/build/
+/android/local.properties
+
+# iOS
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+
+# ================================
+# 📊 FIREBASE & CLOUD FUNCTIONS
+# ================================
+.firebase/
+firebase-debug.log
+.runtimeconfig.json
+
+# ================================
+# 🗂️ OS FILES
+# ================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db

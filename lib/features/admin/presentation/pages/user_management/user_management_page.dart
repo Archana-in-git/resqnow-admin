@@ -84,9 +84,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
         // Role filter
         final matchesRole = _selectedRole.isEmpty || user.role == _selectedRole;
 
-        // Status filter
-        final matchesStatus =
-            _selectedStatus.isEmpty || user.accountStatus == _selectedStatus;
+        // Status filter - also check isBlocked for suspended users
+        bool matchesStatus;
+        if (_selectedStatus.isEmpty) {
+          matchesStatus = true;
+        } else if (_selectedStatus == 'suspended') {
+          // Show users where accountStatus is 'suspended' OR isBlocked is true
+          matchesStatus = user.accountStatus == 'suspended' || user.isBlocked;
+        } else {
+          matchesStatus = user.accountStatus == _selectedStatus;
+        }
 
         return matchesSearch && matchesRole && matchesStatus;
       }).toList();
@@ -507,6 +514,28 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         'Email Verified:',
                         user.emailVerified ? '✓ Yes' : '✗ No',
                       ),
+                      if (user.isBlocked ||
+                          user.accountStatus == 'suspended') ...[
+                        _buildDivider(),
+                        _buildDetailRow(
+                          'Blocked:',
+                          user.isBlocked ? '✓ Yes' : '✗ No',
+                        ),
+                        if (user.suspendedAt != null) ...[
+                          _buildDivider(),
+                          _buildDetailRow(
+                            'Suspended At:',
+                            UserHelper.formatDateTime(user.suspendedAt!),
+                          ),
+                        ],
+                        if (user.suspensionReason != null) ...[
+                          _buildDivider(),
+                          _buildDetailRow(
+                            'Suspension Reason:',
+                            user.suspensionReason!,
+                          ),
+                        ],
+                      ],
                     ],
                   ),
                 ),
@@ -534,7 +563,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Status: ${user.accountStatus}',
+                            'Status: ${user.accountStatus}${user.isBlocked ? ' (Blocked)' : ''}',
                             style: const TextStyle(
                               color: UserManagementColors.warningAmber,
                               fontWeight: FontWeight.w600,
@@ -949,7 +978,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              _suspendUser(user);
+              final reason = reasonController.text.trim();
+              _suspendUser(
+                user,
+                reason.isEmpty
+                    ? 'Suspended by admin for suspicious activity'
+                    : reason,
+              );
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(
@@ -972,9 +1007,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
     );
   }
 
-  Future<void> _suspendUser(AdminUserModel user) async {
+  Future<void> _suspendUser(AdminUserModel user, String reason) async {
     try {
-      await _adminService.suspendUser(user.uid, 'Suspended by admin');
+      await _adminService.suspendUser(user.uid, reason);
       _loadUsers();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

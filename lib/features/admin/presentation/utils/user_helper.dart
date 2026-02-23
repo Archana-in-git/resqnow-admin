@@ -61,26 +61,33 @@ class UserHelper {
     late String label;
     late Color color;
 
-    switch (user.accountStatus) {
-      case 'active':
-        icon = Icons.check_circle;
-        label = 'Active';
-        color = Colors.green;
-        break;
-      case 'suspended':
-        icon = Icons.block;
-        label = 'Suspended';
-        color = Colors.red;
-        break;
-      case 'pending':
-        icon = Icons.pending;
-        label = 'Pending';
-        color = Colors.orange;
-        break;
-      default:
-        icon = Icons.cancel;
-        label = 'Inactive';
-        color = Colors.grey;
+    // Check isBlocked first to catch edge cases
+    if (user.isBlocked) {
+      icon = Icons.block;
+      label = 'Blocked';
+      color = Colors.red;
+    } else {
+      switch (user.accountStatus) {
+        case 'active':
+          icon = Icons.check_circle;
+          label = 'Active';
+          color = Colors.green;
+          break;
+        case 'suspended':
+          icon = Icons.block;
+          label = 'Suspended';
+          color = Colors.red;
+          break;
+        case 'pending':
+          icon = Icons.pending;
+          label = 'Pending';
+          color = Colors.orange;
+          break;
+        default:
+          icon = Icons.cancel;
+          label = 'Inactive';
+          color = Colors.grey;
+      }
     }
 
     return Container(

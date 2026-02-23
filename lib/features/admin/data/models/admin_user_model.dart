@@ -12,6 +12,9 @@ class AdminUserModel {
   final DateTime? lastLogin;
   final String? profileImage;
   final bool emailVerified;
+  final bool isBlocked;
+  final DateTime? suspendedAt;
+  final String? suspensionReason;
 
   AdminUserModel({
     required this.uid,
@@ -23,6 +26,9 @@ class AdminUserModel {
     this.lastLogin,
     this.profileImage,
     this.emailVerified = false,
+    this.isBlocked = false,
+    this.suspendedAt,
+    this.suspensionReason,
   });
 
   /// Create model from entity
@@ -37,6 +43,9 @@ class AdminUserModel {
       lastLogin: entity.lastLogin,
       profileImage: entity.profileImage,
       emailVerified: entity.emailVerified,
+      isBlocked: entity.isBlocked,
+      suspendedAt: entity.suspendedAt,
+      suspensionReason: entity.suspensionReason,
     );
   }
 
@@ -52,6 +61,9 @@ class AdminUserModel {
       lastLogin: lastLogin,
       profileImage: profileImage,
       emailVerified: emailVerified,
+      isBlocked: isBlocked,
+      suspendedAt: suspendedAt,
+      suspensionReason: suspensionReason,
     );
   }
 
@@ -97,6 +109,11 @@ class AdminUserModel {
           : null,
       profileImage: json['profileImage'] as String?,
       emailVerified: json['emailVerified'] as bool? ?? false,
+      isBlocked: json['isBlocked'] as bool? ?? false,
+      suspendedAt: json['suspendedAt'] != null
+          ? _parseDateTime(json['suspendedAt'])
+          : null,
+      suspensionReason: json['suspensionReason'] as String?,
     );
   }
 
@@ -112,6 +129,9 @@ class AdminUserModel {
       'lastLogin': lastLogin?.toIso8601String(),
       'profileImage': profileImage,
       'emailVerified': emailVerified,
+      'isBlocked': isBlocked,
+      'suspendedAt': suspendedAt?.toIso8601String(),
+      'suspensionReason': suspensionReason,
     };
   }
 
@@ -125,6 +145,9 @@ class AdminUserModel {
     DateTime? lastLogin,
     String? profileImage,
     bool? emailVerified,
+    bool? isBlocked,
+    DateTime? suspendedAt,
+    String? suspensionReason,
   }) {
     return AdminUserModel(
       uid: uid ?? this.uid,
@@ -136,6 +159,9 @@ class AdminUserModel {
       lastLogin: lastLogin ?? this.lastLogin,
       profileImage: profileImage ?? this.profileImage,
       emailVerified: emailVerified ?? this.emailVerified,
+      isBlocked: isBlocked ?? this.isBlocked,
+      suspendedAt: suspendedAt ?? this.suspendedAt,
+      suspensionReason: suspensionReason ?? this.suspensionReason,
     );
   }
 }

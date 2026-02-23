@@ -11,6 +11,9 @@ class AdminUserEntity extends Equatable {
   final DateTime? lastLogin;
   final String? profileImage;
   final bool emailVerified;
+  final bool isBlocked;
+  final DateTime? suspendedAt;
+  final String? suspensionReason;
 
   const AdminUserEntity({
     required this.uid,
@@ -22,6 +25,9 @@ class AdminUserEntity extends Equatable {
     this.lastLogin,
     this.profileImage,
     required this.emailVerified,
+    this.isBlocked = false,
+    this.suspendedAt,
+    this.suspensionReason,
   });
 
   @override
@@ -35,6 +41,9 @@ class AdminUserEntity extends Equatable {
     lastLogin,
     profileImage,
     emailVerified,
+    isBlocked,
+    suspendedAt,
+    suspensionReason,
   ];
 }
 

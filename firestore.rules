@@ -10,10 +10,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
+    // Safe admin check - returns false if user doc doesn't exist yet
+    function isAdminSafe() {
       return request.auth != null &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    function isAdmin() {
+      return isAdminSafe();
     }
 
     // ================================
@@ -21,10 +26,11 @@ service cloud.firestore {
     // ================================
     match /users/{userId} {
 
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() || isAdmin();
 
       allow create: if isAuthenticated() &&
-                    request.auth.uid == userId;
+                    request.auth.uid == userId &&
+                    request.resource.data.role == 'user';
 
       allow update: if (
                         isAuthenticated() &&
@@ -52,13 +58,12 @@ service cloud.firestore {
     // ================================
     match /donors/{donorId} {
 
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() || isAdmin();
 
       allow create: if isAuthenticated() &&
                     request.auth.uid == donorId;
 
-      allow update: if isAuthenticated() &&
-                    request.auth.uid == donorId;
+      allow update: if (isAuthenticated() && request.auth.uid == donorId) || isAdmin();
 
       allow delete: if isAdmin();
     }
@@ -96,14 +101,14 @@ service cloud.firestore {
 
       allow create: if isAdmin();
 
-      allow update: if isAuthenticated() &&
+      allow update: if (isAuthenticated() &&
                     resource.data.userId == request.auth.uid &&
                     request.resource.data.userId == resource.data.userId &&
                     request.resource.data.title == resource.data.title &&
                     request.resource.data.message == resource.data.message &&
                     request.resource.data.type == resource.data.type &&
                     request.resource.data.createdAt == resource.data.createdAt &&
-                    request.resource.data.isRead in [true, false];
+                    request.resource.data.isRead in [true, false]) || isAdmin();
 
       allow delete: if isAdmin();
     }
@@ -132,6 +137,14 @@ service cloud.firestore {
     }
 
     match /emergency_numbers/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ================================
+    // ⚙️ APP CONFIGURATION
+    // ================================
+    match /app_config/{doc} {
       allow read: if true;
       allow write: if isAdmin();
     }
