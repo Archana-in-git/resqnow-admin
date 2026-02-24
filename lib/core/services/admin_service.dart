@@ -676,7 +676,7 @@ class AdminService {
   /// Get dashboard statistics
   Future<AnalyticsStats> getAnalyticsStats() async {
     try {
-      // Total Users
+      // Total Users (all accounts, including suspended)
       int totalUsers = 0;
       try {
         final totalUsersSnap = await firestore
@@ -689,8 +689,37 @@ class AdminService {
         totalUsers = 0;
       }
 
-      // New Users Last 7 Days
+      // Active Users (users with accountStatus = 'active' and isBlocked = false)
+      int activeUsersCount = 0;
+      try {
+        final activeUsersSnap = await firestore
+            .collection(usersCollection)
+            .where('accountStatus', isEqualTo: 'active')
+            .where('isBlocked', isEqualTo: false)
+            .count()
+            .get();
+        activeUsersCount = activeUsersSnap.count ?? 0;
+      } catch (e) {
+        print('Error fetching active users: $e');
+        activeUsersCount = 0;
+      }
+
+      // Suspended Users Count
+      int suspendedUsersCount = 0;
+      try {
+        final suspendedSnap = await firestore
+            .collection(usersCollection)
+            .where('accountStatus', isEqualTo: 'suspended')
+            .count()
+            .get();
+        suspendedUsersCount = suspendedSnap.count ?? 0;
+      } catch (e) {
+        suspendedUsersCount = 0;
+      }
+
+      // New Users Last 7 Days (all created in last 7 days)
       int newUsersLastWeek = 0;
+      int activeNewUsersLastWeek = 0;
       try {
         final sevenDaysAgo = Timestamp.fromDate(
           DateTime.now().subtract(Duration(days: 7)),
@@ -698,12 +727,21 @@ class AdminService {
         final newUsersSnap = await firestore
             .collection(usersCollection)
             .where('createdAt', isGreaterThanOrEqualTo: sevenDaysAgo)
-            .count()
             .get();
-        newUsersLastWeek = newUsersSnap.count ?? 0;
+        newUsersLastWeek = newUsersSnap.docs.length;
+
+        // Count active new users
+        activeNewUsersLastWeek = newUsersSnap.docs
+            .where(
+              (doc) =>
+                  doc.get('accountStatus') == 'active' &&
+                  (doc.get('isBlocked') as bool?) == false,
+            )
+            .length;
       } catch (e) {
         print('Error fetching new users: $e');
         newUsersLastWeek = 0;
+        activeNewUsersLastWeek = 0;
       }
 
       // Active Donors
@@ -772,34 +810,37 @@ class AdminService {
         print('Error fetching search logs: $e');
       }
 
-      // Active Users (users with active login sessions)
-      int activeUsers = 0;
+      // Active Sessions (users with active login sessions)
+      int activeSessions = 0;
       try {
-        final activeUsersSnap = await firestore
+        final activeSessionsSnap = await firestore
             .collection('user_sessions')
             .where('isActive', isEqualTo: true)
             .count()
             .get();
-        activeUsers = activeUsersSnap.count ?? 0;
+        activeSessions = activeSessionsSnap.count ?? 0;
       } catch (e) {
-        print('Error fetching active users: $e');
-        activeUsers = 0;
+        print('Error fetching active sessions: $e');
+        activeSessions = 0;
       }
 
       return AnalyticsStats(
         totalUsers: totalUsers,
+        activeUsersCount: activeUsersCount,
+        suspendedUsersCount: suspendedUsersCount,
         newUsersLastWeek: newUsersLastWeek,
+        activeNewUsersLastWeek: activeNewUsersLastWeek,
         activeDonors: activeDonors,
         emergencyClicksToday: emergencyClicksToday,
         mostSearchedCondition: mostSearchedCondition,
-        activeUsers: activeUsers,
+        activeSessions: activeSessions,
         userGrowthPercent: totalUsers > 0
             ? (newUsersLastWeek / totalUsers * 100)
             : 0,
         donorGrowthPercent: activeDonors > 0 ? 5.2 : 0,
         emergencyTrendsPercent: emergencyClicksToday > 0 ? 3.8 : 0,
         activeUsersPercent: totalUsers > 0
-            ? (activeUsers / totalUsers * 100)
+            ? (activeUsersCount / totalUsers * 100)
             : 0,
       );
     } catch (e) {

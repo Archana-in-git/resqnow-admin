@@ -81,10 +81,7 @@ class AdminAuthController with ChangeNotifier {
   /// Check if user is suspended/blocked
   Future<bool> _isUserSuspended(String uid) async {
     try {
-      final doc = await _firestore
-          .collection(usersCollection)
-          .doc(uid)
-          .get();
+      final doc = await _firestore.collection(usersCollection).doc(uid).get();
 
       if (!doc.exists) return true; // User deleted
 
@@ -181,16 +178,25 @@ class AdminAuthController with ChangeNotifier {
         // Update display name
         await user.updateDisplayName(name);
 
-        // Create user document in Firestore
-        await _firestore.collection(usersCollection).doc(user.uid).set({
+        // Create user document in Firestore with proper timestamps
+        final userData = {
           'uid': user.uid,
           'name': name,
           'email': email,
           'role': 'user', // Default role - admin must be set server-side
           'accountStatus': 'active',
-          'createdAt': FieldValue.serverTimestamp(),
+          'createdAt':
+              Timestamp.now(), // Use Timestamp directly for consistency
           'emailVerified': false,
-        }, SetOptions(merge: true));
+          'isBlocked': false,
+          'registeredAt':
+              Timestamp.now(), // Add for consistency with other collections
+        };
+
+        await _firestore
+            .collection(usersCollection)
+            .doc(user.uid)
+            .set(userData, SetOptions(merge: true));
 
         _currentUser = user;
         _currentUserRole = 'user';

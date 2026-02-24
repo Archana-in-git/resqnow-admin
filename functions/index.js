@@ -103,6 +103,8 @@ exports.suspendUserAccount = onCall(async (request) => {
       throw new HttpsError("not-found", "Target user does not exist.");
     }
 
+    const email = (userDoc.data()?.email || "").toString().toLowerCase();
+
     await userRef.set(
       {
         accountStatus: "suspended",
@@ -117,6 +119,24 @@ exports.suspendUserAccount = onCall(async (request) => {
       { merge: true }
     );
 
+    // Add email to blocked_emails collection
+    if (email && email.length > 0) {
+      await db
+        .collection("blocked_emails")
+        .doc(email)
+        .set(
+          {
+            email: email,
+            uid: uid,
+            blockedAt: admin.firestore.FieldValue.serverTimestamp(),
+            reason: reason || "Suspended by admin for suspicious activity",
+            blockedBy: request.auth.uid,
+            status: "suspended",
+          },
+          { merge: true }
+        );
+    }
+
     try {
       await admin.auth().revokeRefreshTokens(uid);
     } catch (error) {
@@ -128,6 +148,7 @@ exports.suspendUserAccount = onCall(async (request) => {
     return {
       success: true,
       uid,
+      email,
       status: "suspended",
     };
   } catch (error) {
@@ -166,6 +187,8 @@ exports.reactivateUserAccount = onCall(async (request) => {
       throw new HttpsError("not-found", "Target user does not exist.");
     }
 
+    const email = (userDoc.data()?.email || "").toString().toLowerCase();
+
     await userRef.set(
       {
         accountStatus: "active",
@@ -178,9 +201,15 @@ exports.reactivateUserAccount = onCall(async (request) => {
       { merge: true }
     );
 
+    // Remove email from blocked_emails collection
+    if (email && email.length > 0) {
+      await db.collection("blocked_emails").doc(email).delete();
+    }
+
     return {
       success: true,
       uid,
+      email,
       status: "active",
     };
   } catch (error) {
@@ -223,6 +252,11 @@ exports.deleteUserAccountCompletely = onCall(async (request) => {
   const deletedCounts = await deleteKnownUserData(uid);
 
   await userRef.delete();
+
+  // Remove email from blocked_emails collection
+  if (email && email.length > 0) {
+    await db.collection("blocked_emails").doc(email).delete();
+  }
 
   try {
     await admin.auth().deleteUser(uid);
