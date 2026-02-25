@@ -105,6 +105,7 @@ exports.suspendUserAccount = onCall(async (request) => {
 
     const email = (userDoc.data()?.email || "").toString().toLowerCase();
 
+    // Update user document
     await userRef.set(
       {
         accountStatus: "suspended",
@@ -121,10 +122,12 @@ exports.suspendUserAccount = onCall(async (request) => {
 
     // Add email to blocked_emails collection
     if (email && email.length > 0) {
-      await db
-        .collection("blocked_emails")
-        .doc(email)
-        .set(
+      try {
+        const blockedEmailRef = db
+          .collection("blocked_emails")
+          .doc(email);
+        
+        await blockedEmailRef.set(
           {
             email: email,
             uid: uid,
@@ -135,6 +138,16 @@ exports.suspendUserAccount = onCall(async (request) => {
           },
           { merge: true }
         );
+        
+        console.log(`DEBUG: Blocked email stored for ${email}`);
+      } catch (frozenError) {
+        console.error(`ERROR: Failed to write to blocked_emails for ${email}:`, {
+          code: frozenError?.code,
+          message: frozenError?.message,
+          stack: frozenError?.stack,
+        });
+        // Continue anyway - user is suspended even if blocked_emails write fails
+      }
     }
 
     try {
@@ -189,6 +202,7 @@ exports.reactivateUserAccount = onCall(async (request) => {
 
     const email = (userDoc.data()?.email || "").toString().toLowerCase();
 
+    // Update user document
     await userRef.set(
       {
         accountStatus: "active",
@@ -203,7 +217,15 @@ exports.reactivateUserAccount = onCall(async (request) => {
 
     // Remove email from blocked_emails collection
     if (email && email.length > 0) {
-      await db.collection("blocked_emails").doc(email).delete();
+      try {
+        await db.collection("blocked_emails").doc(email).delete();
+        console.log(`DEBUG: Removed blocked email for ${email}`);
+      } catch (deleteError) {
+        console.warn(`WARNING: Could not delete blocked_emails for ${email}:`, {
+          message: deleteError?.message,
+        });
+        // Continue anyway - user is reactivated even if blocked_emails delete fails
+      }
     }
 
     return {
@@ -235,57 +257,84 @@ exports.reactivateUserAccount = onCall(async (request) => {
 });
 
 exports.deleteUserAccountCompletely = onCall(async (request) => {
-  await requireAdmin(request);
-
-  const uid = request.data?.uid;
-  if (!uid || typeof uid !== "string") {
-    throw new HttpsError("invalid-argument", "A valid target uid is required.");
-  }
-
-  const userRef = db.collection("users").doc(uid);
-  const userDoc = await userRef.get();
-  if (!userDoc.exists) {
-    throw new HttpsError("not-found", "Target user does not exist.");
-  }
-
-  const email = (userDoc.data()?.email || "").toString().toLowerCase();
-  const deletedCounts = await deleteKnownUserData(uid);
-
-  await userRef.delete();
-
-  // Keep email in blocked_emails collection with status "deleted" to prevent re-signup
-  if (email && email.length > 0) {
-    await db
-      .collection("blocked_emails")
-      .doc(email)
-      .set(
-        {
-          email: email,
-          uid: uid,
-          blockedAt: admin.firestore.FieldValue.serverTimestamp(),
-          reason: "Account deleted by admin",
-          blockedBy: request.auth.uid,
-          status: "deleted",
-          deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-  }
-
   try {
-    await admin.auth().deleteUser(uid);
+    await requireAdmin(request);
+
+    const uid = request.data?.uid;
+    if (!uid || typeof uid !== "string") {
+      throw new HttpsError("invalid-argument", "A valid target uid is required.");
+    }
+
+    const userRef = db.collection("users").doc(uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) {
+      throw new HttpsError("not-found", "Target user does not exist.");
+    }
+
+    const email = (userDoc.data()?.email || "").toString().toLowerCase();
+    const deletedCounts = await deleteKnownUserData(uid);
+
+    // Delete user document
+    await userRef.delete();
+
+    // Keep email in blocked_emails collection with status "deleted" to prevent re-signup
+    if (email && email.length > 0) {
+      try {
+        await db
+          .collection("blocked_emails")
+          .doc(email)
+          .set(
+            {
+              email: email,
+              uid: uid,
+              blockedAt: admin.firestore.FieldValue.serverTimestamp(),
+              reason: "Account deleted by admin",
+              blockedBy: request.auth.uid,
+              status: "deleted",
+              deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        console.log(`DEBUG: Created blocked_emails entry for deleted account ${email}`);
+      } catch (blockError) {
+        console.error(`ERROR: Failed to create blocked_emails for ${email}:`, {
+          code: blockError?.code,
+          message: blockError?.message,
+        });
+        // Continue anyway - account is deleted even if blocked_emails write fails
+      }
+    }
+
+    try {
+      await admin.auth().deleteUser(uid);
+    } catch (error) {
+      if (error?.code !== "auth/user-not-found") {
+        throw error;
+      }
+    }
+
+    return {
+      success: true,
+      uid,
+      email,
+      deletedCounts,
+    };
   } catch (error) {
-    if (error?.code !== "auth/user-not-found") {
+    if (error instanceof HttpsError) {
       throw error;
     }
-  }
 
-  return {
-    success: true,
-    uid,
-    email,
-    deletedCounts,
-  };
+    console.error("deleteUserAccountCompletely failed", {
+      code: error?.code,
+      message: error?.message,
+      stack: error?.stack,
+    });
+
+    throw new HttpsError("internal", "Delete failed due to a server error.", {
+      code: error?.code || "unknown",
+      message: error?.message || "Unknown error",
+    });
+  }
 });
 
 exports.checkUserAccessStatus = onCall(async (request) => {
