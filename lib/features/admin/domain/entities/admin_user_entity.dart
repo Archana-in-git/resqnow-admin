@@ -9,7 +9,7 @@ class AdminUserEntity extends Equatable {
   final String accountStatus;
   final DateTime createdAt;
   final DateTime? lastLogin;
-  final String? profileImage;
+  final String? profileImageUrl;
   final bool emailVerified;
   final bool isBlocked;
   final DateTime? suspendedAt;
@@ -23,7 +23,7 @@ class AdminUserEntity extends Equatable {
     required this.accountStatus,
     required this.createdAt,
     this.lastLogin,
-    this.profileImage,
+    this.profileImageUrl,
     required this.emailVerified,
     this.isBlocked = false,
     this.suspendedAt,
@@ -39,7 +39,7 @@ class AdminUserEntity extends Equatable {
     accountStatus,
     createdAt,
     lastLogin,
-    profileImage,
+    profileImageUrl,
     emailVerified,
     isBlocked,
     suspendedAt,
@@ -52,19 +52,19 @@ class AdminSessionEntity extends Equatable {
   final String uid;
   final String email;
   final String role;
-  final String? profileImage;
+  final String? profileImageUrl;
   final DateTime loginTime;
 
   const AdminSessionEntity({
     required this.uid,
     required this.email,
     required this.role,
-    this.profileImage,
+    this.profileImageUrl,
     required this.loginTime,
   });
 
   bool get isAdmin => role == 'admin';
 
   @override
-  List<Object?> get props => [uid, email, role, profileImage, loginTime];
+  List<Object?> get props => [uid, email, role, profileImageUrl, loginTime];
 }

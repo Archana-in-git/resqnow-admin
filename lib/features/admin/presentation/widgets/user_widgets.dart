@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:resqnow_admin/features/admin/data/models/admin_user_model.dart';
 import 'package:resqnow_admin/features/admin/presentation/utils/user_helper.dart';
 
-/// Reusable User Card Widget
+/// Reusable User Card Widget - Redesigned with direct action buttons
 class UserCard extends StatelessWidget {
   final AdminUserModel user;
   final VoidCallback onTap;
@@ -17,121 +17,158 @@ class UserCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: CircleAvatar(
-          radius: 28,
-          backgroundImage: user.profileImage != null
-              ? NetworkImage(user.profileImage!)
-              : null,
-          backgroundColor: Colors.blue[100],
-          child: user.profileImage == null
-              ? const Icon(Icons.person, size: 28)
-              : null,
+    final isBlockedOrSuspended =
+        user.isBlocked || user.accountStatus == 'suspended';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // User info header
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundImage: user.getProxiedImageUrl() != null
+                      ? NetworkImage(user.getProxiedImageUrl()!)
+                      : null,
+                  backgroundColor: Colors.blue[100],
+                  child: user.getProxiedImageUrl() == null
+                      ? Icon(Icons.person, size: 24, color: Colors.blue[700])
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: Color(0xFF212121),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        user.email,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                UserHelper.getRoleBadge(user.role),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Status and badges row
+            Row(children: [UserHelper.getStatusBadge(user)]),
+            const SizedBox(height: 12),
+            // Action buttons row
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    label: 'View',
+                    icon: Icons.visibility_rounded,
+                    onPressed: () => onActionSelected('view'),
+                    backgroundColor: Colors.blue[50],
+                    textColor: Colors.blue[700],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildActionButton(
+                    label: 'Edit',
+                    icon: Icons.edit_rounded,
+                    onPressed: () => onActionSelected('edit'),
+                    backgroundColor: Colors.green[50],
+                    textColor: Colors.green[700],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildActionButton(
+                    label: isBlockedOrSuspended ? 'Reactivate' : 'Suspend',
+                    icon: isBlockedOrSuspended
+                        ? Icons.restore_rounded
+                        : Icons.block_rounded,
+                    onPressed: () => onActionSelected(
+                      isBlockedOrSuspended ? 'reactivate' : 'suspend',
+                    ),
+                    backgroundColor: isBlockedOrSuspended
+                        ? Colors.orange[50]
+                        : Colors.red[50],
+                    textColor: isBlockedOrSuspended
+                        ? Colors.orange[700]
+                        : Colors.red[700],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        title: _buildTitle(),
-        subtitle: _buildSubtitle(),
-        trailing: _buildActionMenu(),
-        onTap: onTap,
       ),
     );
   }
 
-  Widget _buildTitle() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+    required Color? backgroundColor,
+    required Color? textColor,
+  }) {
+    return Material(
+      color: backgroundColor ?? Colors.grey[100],
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                user.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
+              Icon(icon, size: 18, color: textColor),
               const SizedBox(height: 4),
               Text(
-                user.email,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
         ),
-        UserHelper.getRoleBadge(user.role),
-      ],
-    );
-  }
-
-  Widget _buildSubtitle() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            UserHelper.getStatusBadge(user),
-            const SizedBox(width: 8),
-            UserHelper.getVerificationBadge(user.emailVerified),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Joined: ${UserHelper.formatDate(user.createdAt)}',
-          style: TextStyle(fontSize: 11, color: Colors.grey[700]),
-        ),
-        if (user.lastLogin != null)
-          Text(
-            'Last login: ${UserHelper.getLastLoginText(user.lastLogin)}',
-            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-          ),
-        if (user.isBlocked && user.suspensionReason != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              'Reason: ${user.suspensionReason}',
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.red[700],
-                fontStyle: FontStyle.italic,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildActionMenu() {
-    final isBlockedOrSuspended =
-        user.isBlocked || user.accountStatus == 'suspended';
-
-    return PopupMenuButton(
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'view', child: Text('View Details')),
-        const PopupMenuItem(value: 'edit', child: Text('Edit')),
-        PopupMenuItem(
-          value: isBlockedOrSuspended ? 'reactivate' : 'suspend',
-          child: Text(isBlockedOrSuspended ? 'Reactivate' : 'Suspend'),
-        ),
-        const PopupMenuItem(
-          value: 'delete',
-          child: Text('Delete', style: TextStyle(color: Colors.red)),
-        ),
-      ],
-      onSelected: (value) => onActionSelected(value),
+      ),
     );
   }
 }
 
-/// User Statistics Widget
+/// User Statistics Widget - Separate card design
 class UserStatsWidget extends StatelessWidget {
   final List<AdminUserModel> users;
 
@@ -141,43 +178,46 @@ class UserStatsWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final stats = UserHelper.getStatistics(users);
 
-    return Container(
-      color: Colors.blue.shade50,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            _buildStatCard(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
               label: 'Total Users',
               value: stats['total']!.toString(),
               icon: Icons.people,
               color: Colors.blue,
             ),
-            const SizedBox(width: 16),
-            _buildStatCard(
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
               label: 'Active',
               value: stats['active']!.toString(),
               icon: Icons.check_circle,
               color: Colors.green,
             ),
-            const SizedBox(width: 16),
-            _buildStatCard(
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
               label: 'Suspended',
               value: stats['suspended']!.toString(),
               icon: Icons.block,
               color: Colors.red,
             ),
-            const SizedBox(width: 16),
-            _buildStatCard(
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
               label: 'Admins',
               value: stats['admin']!.toString(),
               icon: Icons.admin_panel_settings,
               color: Colors.purple,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -188,21 +228,55 @@ class UserStatsWidget extends StatelessWidget {
     required IconData icon,
     required Color color,
   }) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: color,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-      ],
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
+              letterSpacing: 0.3,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 }

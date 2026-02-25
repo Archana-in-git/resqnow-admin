@@ -19,7 +19,7 @@ class BloodDonorModel {
   final String? notes;
   final DateTime registeredAt;
   final DateTime? lastDonatedAt;
-  final String? profileImage;
+  final String? profileImageUrl;
   final bool isSuspended;
   final String? suspensionReason;
 
@@ -40,7 +40,7 @@ class BloodDonorModel {
     this.notes,
     required this.registeredAt,
     this.lastDonatedAt,
-    this.profileImage,
+    this.profileImageUrl,
     required this.isSuspended,
     this.suspensionReason,
   });
@@ -64,10 +64,34 @@ class BloodDonorModel {
       notes: notes,
       registeredAt: registeredAt,
       lastDonatedAt: lastDonatedAt,
-      profileImage: profileImage,
+      profileImageUrl: profileImageUrl,
       isSuspended: isSuspended,
       suspensionReason: suspensionReason,
     );
+  }
+
+  /// Get proxied image URL to bypass CORS issues in web
+  String? getProxiedImageUrl() {
+    if (profileImageUrl == null || profileImageUrl!.isEmpty) {
+      return null;
+    }
+
+    try {
+      final url = profileImageUrl!;
+      // Extract the path from Firebase Storage URL
+      // URL format: https://firebasestorage.googleapis.com/v0/b/bucket/o/path%2Fto%2Ffile?...
+      if (url.contains('/o/')) {
+        final pathWithParams = url.split('/o/')[1];
+        final path = Uri.decodeComponent(pathWithParams.split('?')[0]);
+
+        // Return proxied URL using Cloud Function
+        return 'https://us-central1-resqnow-12e6c.cloudfunctions.net/getImage?path=${Uri.encodeComponent(path)}';
+      }
+    } catch (e) {
+      // If parsing fails, return null
+    }
+
+    return null;
   }
 
   /// Create from Firestore JSON
@@ -122,7 +146,7 @@ class BloodDonorModel {
       lastDonatedAt: json['lastDonatedAt'] != null
           ? _parseDateTime(json['lastDonatedAt'])
           : null,
-      profileImage: json['profileImage'] as String?,
+      profileImageUrl: json['profileImageUrl'] as String?,
       isSuspended: json['isSuspended'] as bool? ?? false,
       suspensionReason: json['suspensionReason'] as String?,
     );
@@ -147,7 +171,7 @@ class BloodDonorModel {
       'notes': notes,
       'registeredAt': registeredAt.toIso8601String(),
       'lastDonatedAt': lastDonatedAt?.toIso8601String(),
-      'profileImage': profileImage,
+      'profileImageUrl': profileImageUrl,
       'isSuspended': isSuspended,
       'suspensionReason': suspensionReason,
     };
@@ -170,7 +194,7 @@ class BloodDonorModel {
     String? notes,
     DateTime? registeredAt,
     DateTime? lastDonatedAt,
-    String? profileImage,
+    String? profileImageUrl,
     bool? isSuspended,
     String? suspensionReason,
   }) {
@@ -191,7 +215,7 @@ class BloodDonorModel {
       notes: notes ?? this.notes,
       registeredAt: registeredAt ?? this.registeredAt,
       lastDonatedAt: lastDonatedAt ?? this.lastDonatedAt,
-      profileImage: profileImage ?? this.profileImage,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       isSuspended: isSuspended ?? this.isSuspended,
       suspensionReason: suspensionReason ?? this.suspensionReason,
     );

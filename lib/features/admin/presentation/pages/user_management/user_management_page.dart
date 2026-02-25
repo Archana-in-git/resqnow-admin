@@ -103,7 +103,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Color(0xFFF5F5F5),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
@@ -150,6 +150,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.black, width: 1.5),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.06),
@@ -239,7 +240,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                   ('', 'All Status'),
                                   ('active', 'Active'),
                                   ('suspended', 'Suspended'),
-                                  ('pending', 'Pending'),
                                 ],
                                 onChanged: (value) {
                                   setState(() => _selectedStatus = value ?? '');
@@ -263,6 +263,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: Colors.black,
+                                    width: 1.5,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withOpacity(0.06),
@@ -335,6 +339,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black, width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
@@ -406,9 +411,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
         break;
       case 'reactivate':
         _reactivateUser(user);
-        break;
-      case 'delete':
-        _showDeleteDialog(user);
         break;
     }
   }
@@ -489,10 +491,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             child: CircleAvatar(
                               radius: 52,
                               backgroundColor: Colors.white,
-                              backgroundImage: user.profileImage != null
-                                  ? NetworkImage(user.profileImage!)
+                              backgroundImage: user.getProxiedImageUrl() != null
+                                  ? NetworkImage(user.getProxiedImageUrl()!)
                                   : null,
-                              child: user.profileImage == null
+                              child: user.getProxiedImageUrl() == null
                                   ? const Icon(
                                       Icons.person_rounded,
                                       size: 52,
@@ -681,7 +683,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
   void _showEditUserDialog(AdminUserModel user) {
     final nameController = TextEditingController(text: user.name);
     String selectedRole = user.role;
-    String selectedStatus = user.accountStatus;
 
     showDialog(
       context: context,
@@ -766,20 +767,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         },
                         icon: Icons.security_rounded,
                       ),
-                      const SizedBox(height: 20),
-                      _buildStyledDropdown(
-                        label: 'Account Status',
-                        value: selectedStatus,
-                        items: ['active', 'suspended', 'pending']
-                            .map((status) => (status, status.toUpperCase()))
-                            .toList(),
-                        onChanged: (value) {
-                          setState(
-                            () => selectedStatus = value ?? user.accountStatus,
-                          );
-                        },
-                        icon: Icons.assignment_turned_in_rounded,
-                      ),
                       const SizedBox(height: 32),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -808,7 +795,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                 user,
                                 nameController.text,
                                 selectedRole,
-                                selectedStatus,
                               );
                               Navigator.pop(context);
                             },
@@ -1184,213 +1170,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
     }
   }
 
-  void _showDeleteDialog(AdminUserModel user) {
-    showDialog(
-      context: context,
-      builder: (context) => Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 450),
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          child: Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header with gradient
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Colors.red[600]!, Colors.red[700]!],
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(24),
-                        topRight: Radius.circular(24),
-                      ),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Delete User',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
-                              Icons.close_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Content
-                  Padding(
-                    padding: const EdgeInsets.all(28.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.red[50],
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Icon(
-                            Icons.warning_rounded,
-                            size: 40,
-                            color: Colors.red[600],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'Are you sure?',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: UserManagementColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            text: 'You are about to delete ',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: UserManagementColors.textSecondary,
-                              height: 1.6,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: user.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: UserManagementColors.textPrimary,
-                                ),
-                              ),
-                              const TextSpan(
-                                text: '. This action cannot be undone.',
-                                style: TextStyle(
-                                  color: UserManagementColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                              ),
-                              child: const Text(
-                                'Cancel',
-                                style: TextStyle(
-                                  color: UserManagementColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton(
-                              onPressed: () {
-                                _deleteUser(user);
-                                Navigator.pop(context);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red[600],
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 28,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                elevation: 0,
-                              ),
-                              child: const Text(
-                                'Delete',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _deleteUser(AdminUserModel user) async {
-    try {
-      await _adminService.deleteUser(user.uid);
-      _loadUsers();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${user.name} has been deleted'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error deleting user: $e')));
-      }
-    }
-  }
-
   Future<void> _updateUser(
     AdminUserModel user,
     String name,
     String role,
-    String status,
   ) async {
     try {
-      await _adminService.updateUser(user.uid, {
-        'name': name,
-        'role': role,
-        'accountStatus': status,
-      });
+      await _adminService.updateUser(user.uid, {'name': name, 'role': role});
       _loadUsers();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

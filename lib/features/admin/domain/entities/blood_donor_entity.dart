@@ -18,7 +18,7 @@ class BloodDonorEntity extends Equatable {
   final String? notes;
   final DateTime registeredAt;
   final DateTime? lastDonatedAt;
-  final String? profileImage;
+  final String? profileImageUrl;
   final bool isSuspended;
   final String? suspensionReason;
 
@@ -39,7 +39,7 @@ class BloodDonorEntity extends Equatable {
     this.notes,
     required this.registeredAt,
     this.lastDonatedAt,
-    this.profileImage,
+    this.profileImageUrl,
     required this.isSuspended,
     this.suspensionReason,
   });
@@ -62,7 +62,7 @@ class BloodDonorEntity extends Equatable {
     notes,
     registeredAt,
     lastDonatedAt,
-    profileImage,
+    profileImageUrl,
     isSuspended,
     suspensionReason,
   ];

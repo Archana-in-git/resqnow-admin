@@ -10,7 +10,7 @@ class AdminUserModel {
   final String accountStatus;
   final DateTime createdAt;
   final DateTime? lastLogin;
-  final String? profileImage;
+  final String? profileImageUrl;
   final bool emailVerified;
   final bool isBlocked;
   final DateTime? suspendedAt;
@@ -24,7 +24,7 @@ class AdminUserModel {
     required this.accountStatus,
     required this.createdAt,
     this.lastLogin,
-    this.profileImage,
+    this.profileImageUrl,
     this.emailVerified = false,
     this.isBlocked = false,
     this.suspendedAt,
@@ -41,7 +41,7 @@ class AdminUserModel {
       accountStatus: entity.accountStatus,
       createdAt: entity.createdAt,
       lastLogin: entity.lastLogin,
-      profileImage: entity.profileImage,
+      profileImageUrl: entity.profileImageUrl,
       emailVerified: entity.emailVerified,
       isBlocked: entity.isBlocked,
       suspendedAt: entity.suspendedAt,
@@ -59,12 +59,36 @@ class AdminUserModel {
       accountStatus: accountStatus,
       createdAt: createdAt,
       lastLogin: lastLogin,
-      profileImage: profileImage,
+      profileImageUrl: profileImageUrl,
       emailVerified: emailVerified,
       isBlocked: isBlocked,
       suspendedAt: suspendedAt,
       suspensionReason: suspensionReason,
     );
+  }
+
+  /// Get proxied image URL to bypass CORS issues in web
+  String? getProxiedImageUrl() {
+    if (profileImageUrl == null || profileImageUrl!.isEmpty) {
+      return null;
+    }
+
+    try {
+      final url = profileImageUrl!;
+      // Extract the path from Firebase Storage URL
+      // URL format: https://firebasestorage.googleapis.com/v0/b/bucket/o/path%2Fto%2Ffile?...
+      if (url.contains('/o/')) {
+        final pathWithParams = url.split('/o/')[1];
+        final path = Uri.decodeComponent(pathWithParams.split('?')[0]);
+
+        // Return proxied URL using Cloud Function
+        return 'https://us-central1-resqnow-12e6c.cloudfunctions.net/getImage?path=${Uri.encodeComponent(path)}';
+      }
+    } catch (e) {
+      // If parsing fails, return null
+    }
+
+    return null;
   }
 
   /// Create from Firestore JSON
@@ -107,7 +131,7 @@ class AdminUserModel {
       lastLogin: json['lastLogin'] != null
           ? _parseDateTime(json['lastLogin'])
           : null,
-      profileImage: json['profileImage'] as String?,
+      profileImageUrl: json['profileImageUrl'] as String?,
       emailVerified: json['emailVerified'] as bool? ?? false,
       isBlocked: json['isBlocked'] as bool? ?? false,
       suspendedAt: json['suspendedAt'] != null
@@ -127,7 +151,7 @@ class AdminUserModel {
       'accountStatus': accountStatus,
       'createdAt': createdAt.toIso8601String(),
       'lastLogin': lastLogin?.toIso8601String(),
-      'profileImage': profileImage,
+      'profileImageUrl': profileImageUrl,
       'emailVerified': emailVerified,
       'isBlocked': isBlocked,
       'suspendedAt': suspendedAt?.toIso8601String(),
@@ -143,7 +167,7 @@ class AdminUserModel {
     String? accountStatus,
     DateTime? createdAt,
     DateTime? lastLogin,
-    String? profileImage,
+    String? profileImageUrl,
     bool? emailVerified,
     bool? isBlocked,
     DateTime? suspendedAt,
@@ -157,7 +181,7 @@ class AdminUserModel {
       accountStatus: accountStatus ?? this.accountStatus,
       createdAt: createdAt ?? this.createdAt,
       lastLogin: lastLogin ?? this.lastLogin,
-      profileImage: profileImage ?? this.profileImage,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       emailVerified: emailVerified ?? this.emailVerified,
       isBlocked: isBlocked ?? this.isBlocked,
       suspendedAt: suspendedAt ?? this.suspendedAt,

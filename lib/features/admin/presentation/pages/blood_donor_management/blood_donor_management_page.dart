@@ -66,14 +66,16 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
       _filteredDonors = _allDonors.where((donor) {
         // Search filter
         final searchQuery = _searchController.text.toLowerCase();
-        final matchesSearch = searchQuery.isEmpty ||
+        final matchesSearch =
+            searchQuery.isEmpty ||
             donor.name.toLowerCase().contains(searchQuery) ||
             donor.email.toLowerCase().contains(searchQuery) ||
             donor.phone.contains(searchQuery);
 
         // Blood group filter
         final matchesBloodGroup =
-            _selectedBloodGroup.isEmpty || donor.bloodGroup == _selectedBloodGroup;
+            _selectedBloodGroup.isEmpty ||
+            donor.bloodGroup == _selectedBloodGroup;
 
         // District filter
         final matchesDistrict =
@@ -83,7 +85,10 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
         final matchesTown =
             _selectedTown.isEmpty || donor.town == _selectedTown;
 
-        return matchesSearch && matchesBloodGroup && matchesDistrict && matchesTown;
+        return matchesSearch &&
+            matchesBloodGroup &&
+            matchesDistrict &&
+            matchesTown;
       }).toList();
     });
   }
@@ -148,9 +153,7 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
                             )
                             .toList(),
                         onChanged: (value) {
-                          setState(
-                            () => _selectedBloodGroup = value ?? '',
-                          );
+                          setState(() => _selectedBloodGroup = value ?? '');
                           _applyFilters();
                         },
                       ),
@@ -181,14 +184,23 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredDonors.isEmpty
-                    ? const EmptyDonorListWidget()
-                    : ListView.builder(
+                ? const EmptyDonorListWidget()
+                : Container(
+                    color: Colors.white,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 28,
+                        vertical: 24,
+                      ),
+                      child: ListView.builder(
                         itemCount: _filteredDonors.length,
                         itemBuilder: (context, index) {
                           final donor = _filteredDonors[index];
                           return _buildDonorTile(donor);
                         },
                       ),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -207,9 +219,6 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
     switch (action) {
       case 'view':
         _showDonorDetailsDialog(donor);
-        break;
-      case 'edit':
-        _showEditDonorDialog(donor);
         break;
       case 'suspend':
         _showSuspendDialog(donor);
@@ -256,11 +265,11 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
                     children: [
                       CircleAvatar(
                         radius: 50,
-                        backgroundImage: donor.profileImage != null
-                            ? NetworkImage(donor.profileImage!)
+                        backgroundImage: donor.getProxiedImageUrl() != null
+                            ? NetworkImage(donor.getProxiedImageUrl()!)
                             : null,
                         backgroundColor: Colors.red[100],
-                        child: donor.profileImage == null
+                        child: donor.getProxiedImageUrl() == null
                             ? const Icon(Icons.person, size: 50)
                             : null,
                       ),
@@ -304,7 +313,10 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
                   'Location:',
                   '${donor.town}, ${donor.district} - ${donor.pincode}',
                 ),
-                _buildDetailRow('Status:', donor.isAvailable ? 'Available' : 'Unavailable'),
+                _buildDetailRow(
+                  'Status:',
+                  donor.isAvailable ? 'Available' : 'Unavailable',
+                ),
                 if (donor.lastDonatedAt != null)
                   _buildDetailRow(
                     'Last Donated:',
@@ -383,117 +395,8 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          Expanded(
-            child: Text(value),
-          ),
+          Expanded(child: Text(value)),
         ],
-      ),
-    );
-  }
-
-  void _showEditDonorDialog(BloodDonorModel donor) {
-    final nameController = TextEditingController(text: donor.name);
-    final phoneController = TextEditingController(text: donor.phone);
-    final townController = TextEditingController(text: donor.town);
-    final districtController = TextEditingController(text: donor.district);
-    final notesController = TextEditingController(text: donor.notes ?? '');
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Edit Donor',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Name',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: townController,
-                  decoration: const InputDecoration(
-                    labelText: 'Town',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: districtController,
-                  decoration: const InputDecoration(
-                    labelText: 'District',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () async {
-                        _updateDonor(
-                          donor,
-                          nameController.text,
-                          phoneController.text,
-                          townController.text,
-                          districtController.text,
-                          notesController.text,
-                        );
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Save Changes'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -535,13 +438,8 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
               _suspendDonor(donor, reasonController.text);
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text(
-              'Suspend',
-              style: TextStyle(color: Colors.white),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Suspend', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -565,9 +463,9 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error suspending donor: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error suspending donor: $e')));
       }
     }
   }
@@ -589,9 +487,9 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error reactivating donor: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error reactivating donor: $e')));
       }
     }
   }
@@ -626,13 +524,8 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
               _deleteDonor(donor);
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.white),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -653,43 +546,9 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting donor: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _updateDonor(
-    BloodDonorModel donor,
-    String name,
-    String phone,
-    String town,
-    String district,
-    String notes,
-  ) async {
-    try {
-      await _adminService.updateBloodDonor(donor.uid, {
-        'name': name,
-        'phone': phone,
-        'town': town,
-        'district': district,
-        'notes': notes,
-      });
-      _loadDonors();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Donor updated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating donor: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error deleting donor: $e')));
       }
     }
   }

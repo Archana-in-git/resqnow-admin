@@ -7,13 +7,13 @@ class UserHelper {
   static Color getRoleColor(String role) {
     switch (role) {
       case 'admin':
-        return Colors.red;
+        return Colors.amber;
       case 'support':
         return Colors.blue;
       case 'moderator':
         return Colors.orange;
       case 'user':
-        return Colors.green;
+        return Colors.indigo;
       default:
         return Colors.grey;
     }
@@ -135,6 +135,33 @@ class UserHelper {
       default:
         label = 'User';
         icon = Icons.person;
+    }
+
+    // Special styling for admin role (yellow with black border and text)
+    if (role == 'admin') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.amber[100],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.black, width: 1.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: Colors.black),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return Container(

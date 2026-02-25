@@ -1,3 +1,5 @@
+// ===== Reactivation Fix Deployed: Feb 25, 2026 =====
+// Fixed: reactivateUserAccount now verifies blocked_emails deletion and throws errors if it fails
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
@@ -218,21 +220,51 @@ exports.reactivateUserAccount = onCall(async (request) => {
 
     // Remove email from blocked_emails collection
     if (email && email.length > 0) {
-      try {
-        await db.collection("blocked_emails").doc(email).delete();
-        console.log(`✓ Successfully unblocked email: ${email}`, {
-          uid,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (deleteError) {
-        console.warn(
-          `⚠ WARNING: Could not delete blocked_emails for ${email}:`,
-          {
-            message: deleteError?.message,
-            code: deleteError?.code,
+      // Verify the email exists in blocked_emails first
+      const blockedEmailDoc = await db
+        .collection("blocked_emails")
+        .doc(email)
+        .get();
+
+      if (blockedEmailDoc.exists) {
+        try {
+          await db.collection("blocked_emails").doc(email).delete();
+
+          // Verify deletion succeeded
+          const afterDelete = await db
+            .collection("blocked_emails")
+            .doc(email)
+            .get();
+
+          if (afterDelete.exists) {
+            throw new Error(
+              `Deletion verification failed: ${email} still exists in blocked_emails`
+            );
           }
+
+          console.log(`✓ Successfully unblocked email: ${email}`, {
+            uid,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (deleteError) {
+          console.error(
+            `✗ CRITICAL ERROR: Failed to unblock ${email} during reactivation:`,
+            {
+              message: deleteError?.message,
+              code: deleteError?.code,
+              uid,
+            }
+          );
+          // Throw error so admin knows something went wrong
+          throw new HttpsError(
+            "internal",
+            `Failed to remove email from blocked list. Email: ${email}. Error: ${deleteError?.message}`
+          );
+        }
+      } else {
+        console.log(
+          `ℹ Email not in blocked_emails (already unblocked): ${email}`
         );
-        // Continue anyway - user reactivation is still valid
       }
     }
 
@@ -241,6 +273,8 @@ exports.reactivateUserAccount = onCall(async (request) => {
       uid,
       email,
       status: "active",
+      message: `Account reactivated successfully. User can now login and signup.`,
+      timestamp: new Date().toISOString(), // Added timestamp to force deploy
     };
   } catch (error) {
     if (error instanceof HttpsError) {
@@ -597,5 +631,67 @@ exports.syncBlockedEmails = onCall(async (request) => {
       code: error?.code || "unknown",
       message: error?.message || "Unknown error",
     });
+  }
+});
+
+// ===== Image Proxy Function =====
+// Serves images from Firebase Storage to bypass CORS issues in web apps
+const { onRequest } = require("firebase-functions/v2/https");
+
+exports.getImage = onRequest(async (req, res) => {
+  try {
+    // Enable CORS
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+
+    if (req.method !== "GET") {
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    // Get the image path from query parameter
+    const imagePath = req.query.path;
+    if (!imagePath) {
+      res.status(400).send("Missing path parameter");
+      return;
+    }
+
+    // Verify path is safe (prevent directory traversal)
+    if (imagePath.includes("..") || imagePath.startsWith("/")) {
+      res.status(400).send("Invalid path");
+      return;
+    }
+
+    // Get the bucket name from environment or default
+    const bucket = admin.storage().bucket();
+    const file = bucket.file(imagePath);
+
+    // Check if file exists
+    const [exists] = await file.exists();
+    if (!exists) {
+      res.status(404).send("Image not found");
+      return;
+    }
+
+    // Get file metadata for content type
+    const [metadata] = await file.getMetadata();
+    const contentType = metadata.contentType || "image/jpeg";
+
+    // Set response headers
+    res.set("Content-Type", contentType);
+    res.set("Cache-Control", "public, max-age=3600");
+    res.set("Access-Control-Allow-Origin", "*");
+
+    // Stream the file to response
+    file.createReadStream().pipe(res);
+  } catch (error) {
+    console.error("Error serving image:", error);
+    res.status(500).send("Error retrieving image");
   }
 });
