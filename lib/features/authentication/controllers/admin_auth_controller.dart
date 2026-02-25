@@ -78,7 +78,7 @@ class AdminAuthController with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Check if user is suspended/blocked
+  /// Check if user is suspended/blocked (checks both user doc and blocked_emails)
   Future<bool> _isUserSuspended(String uid) async {
     try {
       final doc = await _firestore.collection(usersCollection).doc(uid).get();
@@ -88,7 +88,35 @@ class AdminAuthController with ChangeNotifier {
       final accountStatus = doc.get('accountStatus') as String?;
       final isBlocked = doc.get('isBlocked') as bool? ?? false;
 
-      return accountStatus == 'suspended' || isBlocked;
+      // Check if status indicates suspension or blocked
+      if (accountStatus == 'suspended' || isBlocked) {
+        return true;
+      }
+
+      // Also check blocked_emails collection for additional security
+      // Get user email to verify against blocked_emails
+      try {
+        final email = (doc.get('email') as String? ?? '').toLowerCase();
+        if (email.isNotEmpty) {
+          final blockedEmailDoc = await _firestore
+              .collection('blocked_emails')
+              .doc(email)
+              .get();
+
+          if (blockedEmailDoc.exists) {
+            final status = blockedEmailDoc.get('status') as String? ?? '';
+            // If found in blocked_emails and status is suspended/deleted, user is blocked
+            if (status == 'suspended' || status == 'deleted') {
+              return true;
+            }
+          }
+        }
+      } catch (e) {
+        // If blocked_emails check fails, that's okay - we already checked accountStatus
+        print('Warning: Could not verify blocked_emails: $e');
+      }
+
+      return false;
     } catch (e) {
       return false;
     }

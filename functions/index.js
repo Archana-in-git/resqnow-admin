@@ -123,30 +123,31 @@ exports.suspendUserAccount = onCall(async (request) => {
     // Add email to blocked_emails collection
     if (email && email.length > 0) {
       try {
-        const blockedEmailRef = db
-          .collection("blocked_emails")
-          .doc(email);
-        
-        await blockedEmailRef.set(
-          {
-            email: email,
-            uid: uid,
-            blockedAt: admin.firestore.FieldValue.serverTimestamp(),
-            reason: reason || "Suspended by admin for suspicious activity",
-            blockedBy: request.auth.uid,
-            status: "suspended",
-          },
-          { merge: true }
-        );
-        
-        console.log(`DEBUG: Blocked email stored for ${email}`);
+        const blockedEmailRef = db.collection("blocked_emails").doc(email);
+
+        const blockedEmailData = {
+          email: email,
+          uid: uid,
+          blockedAt: admin.firestore.FieldValue.serverTimestamp(),
+          reason: reason || "Suspended by admin for suspicious activity",
+          blockedBy: request.auth.uid,
+          status: "suspended",
+        };
+
+        await blockedEmailRef.set(blockedEmailData, { merge: true });
+
+        console.log(`✓ Successfully blocked email: ${email}`, {
+          uid,
+          timestamp: new Date().toISOString(),
+        });
       } catch (frozenError) {
-        console.error(`ERROR: Failed to write to blocked_emails for ${email}:`, {
+        console.error(`✗ CRITICAL ERROR: Failed to block email ${email}:`, {
           code: frozenError?.code,
           message: frozenError?.message,
-          stack: frozenError?.stack,
+          errorDetails: frozenError?.toString(),
         });
-        // Continue anyway - user is suspended even if blocked_emails write fails
+        // Log but do NOT throw - user suspension in main collection is still valid
+        // This prevents the entire suspend operation from failing
       }
     }
 
@@ -219,12 +220,19 @@ exports.reactivateUserAccount = onCall(async (request) => {
     if (email && email.length > 0) {
       try {
         await db.collection("blocked_emails").doc(email).delete();
-        console.log(`DEBUG: Removed blocked email for ${email}`);
-      } catch (deleteError) {
-        console.warn(`WARNING: Could not delete blocked_emails for ${email}:`, {
-          message: deleteError?.message,
+        console.log(`✓ Successfully unblocked email: ${email}`, {
+          uid,
+          timestamp: new Date().toISOString(),
         });
-        // Continue anyway - user is reactivated even if blocked_emails delete fails
+      } catch (deleteError) {
+        console.warn(
+          `⚠ WARNING: Could not delete blocked_emails for ${email}:`,
+          {
+            message: deleteError?.message,
+            code: deleteError?.code,
+          }
+        );
+        // Continue anyway - user reactivation is still valid
       }
     }
 
@@ -262,7 +270,10 @@ exports.deleteUserAccountCompletely = onCall(async (request) => {
 
     const uid = request.data?.uid;
     if (!uid || typeof uid !== "string") {
-      throw new HttpsError("invalid-argument", "A valid target uid is required.");
+      throw new HttpsError(
+        "invalid-argument",
+        "A valid target uid is required."
+      );
     }
 
     const userRef = db.collection("users").doc(uid);
@@ -280,26 +291,30 @@ exports.deleteUserAccountCompletely = onCall(async (request) => {
     // Keep email in blocked_emails collection with status "deleted" to prevent re-signup
     if (email && email.length > 0) {
       try {
+        const blockedEmailData = {
+          email: email,
+          uid: uid,
+          blockedAt: admin.firestore.FieldValue.serverTimestamp(),
+          reason: "Account deleted by admin",
+          blockedBy: request.auth.uid,
+          status: "deleted",
+          deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
         await db
           .collection("blocked_emails")
           .doc(email)
-          .set(
-            {
-              email: email,
-              uid: uid,
-              blockedAt: admin.firestore.FieldValue.serverTimestamp(),
-              reason: "Account deleted by admin",
-              blockedBy: request.auth.uid,
-              status: "deleted",
-              deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
-        console.log(`DEBUG: Created blocked_emails entry for deleted account ${email}`);
+          .set(blockedEmailData, { merge: true });
+
+        console.log(`✓ Successfully marked email as deleted: ${email}`, {
+          uid,
+          timestamp: new Date().toISOString(),
+        });
       } catch (blockError) {
-        console.error(`ERROR: Failed to create blocked_emails for ${email}:`, {
+        console.error(`✗ ERROR: Failed to block deleted email ${email}:`, {
           code: blockError?.code,
           message: blockError?.message,
+          errorDetails: blockError?.toString(),
         });
         // Continue anyway - account is deleted even if blocked_emails write fails
       }
@@ -481,15 +496,12 @@ exports.sendNotificationToUsers = onDocumentCreated(
       }
 
       // Update notification document with delivery status
-      await db
-        .collection("notifications")
-        .doc(event.id)
-        .update({
-          deliveredCount: successCount,
-          failedCount: failureCount,
-          sentAt: admin.firestore.FieldValue.serverTimestamp(),
-          invalidTokenUsers: failedTokens,
-        });
+      await db.collection("notifications").doc(event.id).update({
+        deliveredCount: successCount,
+        failedCount: failureCount,
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        invalidTokenUsers: failedTokens,
+      });
 
       console.log(
         `Notification ${event.id} delivered to ${successCount} users, failed for ${failureCount}`
@@ -503,3 +515,87 @@ exports.sendNotificationToUsers = onDocumentCreated(
     }
   }
 );
+
+exports.syncBlockedEmails = onCall(async (request) => {
+  try {
+    await requireAdmin(request);
+
+    console.log("Starting syncBlockedEmails...");
+
+    // Get all suspended users
+    const suspendedSnapshot = await db
+      .collection("users")
+      .where("accountStatus", "==", "suspended")
+      .get();
+
+    console.log(`Found ${suspendedSnapshot.size} suspended users`);
+
+    const batch = db.batch();
+    let addedCount = 0;
+    let errors = [];
+
+    // Add each suspended user's email to blocked_emails
+    for (const userDoc of suspendedSnapshot.docs) {
+      try {
+        const userData = userDoc.data();
+        const email = (userData.email || "").toString().toLowerCase();
+        const uid = userDoc.id;
+
+        if (!email || email.length === 0) {
+          console.warn(`Skipping user ${uid} - no email found`);
+          continue;
+        }
+
+        const blockedEmailRef = db.collection("blocked_emails").doc(email);
+        const blockedEmailData = {
+          email: email,
+          uid: uid,
+          blockedAt: admin.firestore.FieldValue.serverTimestamp(),
+          reason: userData.suspensionReason || "Suspended by admin",
+          status: "suspended",
+          syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        batch.set(blockedEmailRef, blockedEmailData, { merge: true });
+        addedCount++;
+        console.log(`✓ Prepared email for sync: ${email} (UID: ${uid})`);
+      } catch (err) {
+        errors.push({
+          uid: userDoc.id,
+          error: err.message,
+        });
+        console.error(`Error processing user ${userDoc.id}:`, err.message);
+      }
+    }
+
+    // Commit the batch
+    if (addedCount > 0) {
+      await batch.commit();
+      console.log(
+        `✓ Successfully synced ${addedCount} suspended users to blocked_emails`
+      );
+    }
+
+    return {
+      success: true,
+      addedCount,
+      errors: errors.length > 0 ? errors : [],
+      message: `Synced ${addedCount} suspended users to blocked_emails collection`,
+    };
+  } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    console.error("syncBlockedEmails failed", {
+      code: error?.code,
+      message: error?.message,
+      stack: error?.stack,
+    });
+
+    throw new HttpsError("internal", "Sync failed due to a server error.", {
+      code: error?.code || "unknown",
+      message: error?.message || "Unknown error",
+    });
+  }
+});

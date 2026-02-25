@@ -81,15 +81,25 @@ class AdminService {
       }
 
       final snapshot = await query.get();
-      return snapshot.docs
-          .map(
-            (doc) => AdminUserModel.fromJson({
-              ...doc.data() as Map<String, dynamic>,
-              'uid': doc.id,
-            }),
-          )
-          .toList();
+      print('DEBUG: Fetched ${snapshot.docs.length} users from Firestore');
+
+      List<AdminUserModel> users = [];
+      for (var doc in snapshot.docs) {
+        try {
+          final userData = doc.data() as Map<String, dynamic>;
+          final user = AdminUserModel.fromJson({...userData, 'uid': doc.id});
+          users.add(user);
+        } catch (e) {
+          print('ERROR: Failed to parse user ${doc.id}: $e');
+          print('  Data: ${doc.data()}');
+          // Continue processing other users
+        }
+      }
+
+      print('DEBUG: Successfully parsed ${users.length} users');
+      return users;
     } catch (e) {
+      print('ERROR: getAllUsers failed: $e');
       throw Exception('Failed to fetch users: $e');
     }
   }
@@ -1070,7 +1080,8 @@ class AdminService {
   Future<void> sendNotification({
     required String title,
     required String message,
-    required String recipientType, // 'all_users', 'donors_only', 'specific_district'
+    required String
+    recipientType, // 'all_users', 'donors_only', 'specific_district'
     String? targetDistrict,
   }) async {
     try {
@@ -1112,8 +1123,9 @@ class AdminService {
 
       for (final userDoc in userDocs.docs) {
         final userId = userDoc.id;
-        final notificationRef =
-            firestore.collection(notificationsCollection).doc();
+        final notificationRef = firestore
+            .collection(notificationsCollection)
+            .doc();
 
         batch.set(notificationRef, {
           'userId': userId,
