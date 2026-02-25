@@ -364,9 +364,6 @@ class TopConditionsWidget extends StatelessWidget {
           const SizedBox(height: 16),
           ...List.generate(conditions.length, (index) {
             final condition = conditions[index];
-            final barWidth = maxViews > 0
-                ? (condition.viewCount / maxViews * 200)
-                : 20.0;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),

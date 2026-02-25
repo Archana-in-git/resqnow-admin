@@ -358,7 +358,7 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
 
                 if (isEditing) {
                   await adminService.updateResource(
-                    resource!.id,
+                    resource.id,
                     newResource.toJson(),
                   );
                   _showErrorSnackbar('Resource updated successfully');

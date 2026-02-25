@@ -279,3 +279,130 @@ exports.checkUserAccessStatus = onCall(async (request) => {
     message: "ok",
   };
 });
+
+// ============ NOTIFICATION DELIVERY FUNCTION ============
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+
+exports.sendNotificationToUsers = onDocumentCreated(
+  "notifications/{notificationId}",
+  async (event) => {
+    const notificationData = event.data.data();
+    const { title, message, recipientType, targetDistrict } = notificationData;
+
+    if (!title || !message || !recipientType) {
+      console.error("Invalid notification data", notificationData);
+      return;
+    }
+
+    try {
+      let userQuery = db.collection("users");
+
+      // Filter based on recipientType
+      if (recipientType === "donors_only") {
+        userQuery = userQuery.where("isDonor", "==", true);
+      } else if (recipientType === "specific_district" && targetDistrict) {
+        userQuery = userQuery.where("district", "==", targetDistrict);
+      }
+      // If 'all_users', no additional filter
+
+      const usersSnapshot = await userQuery.get();
+
+      if (usersSnapshot.empty) {
+        console.log(
+          "No users found for notification criteria:",
+          recipientType,
+          targetDistrict
+        );
+        return;
+      }
+
+      let successCount = 0;
+      let failureCount = 0;
+      const failedTokens = [];
+
+      // Send to all matching users
+      for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        const fcmToken = userData?.fcmToken || userData?.deviceToken;
+
+        if (!fcmToken) {
+          console.log(
+            `No FCM token for user ${userDoc.id}, skipping notification`
+          );
+          failureCount++;
+          continue;
+        }
+
+        try {
+          const response = await admin.messaging().send({
+            token: fcmToken,
+            notification: {
+              title: title,
+              body: message,
+            },
+            data: {
+              notificationId: event.id,
+              type: notificationData.type || "general",
+              timestamp: new Date().toISOString(),
+            },
+            android: {
+              priority: "high",
+              notification: {
+                sound: "default",
+                channelId: "default",
+              },
+            },
+            apns: {
+              headers: {
+                "apns-priority": "10",
+              },
+              payload: {
+                aps: {
+                  sound: "default",
+                  "content-available": 1,
+                  badge: 1,
+                },
+              },
+            },
+          });
+
+          console.log(`Notification sent to ${userDoc.id}:`, response);
+          successCount++;
+        } catch (error) {
+          console.error(
+            `Failed to send notification to ${userDoc.id}:`,
+            error.message
+          );
+          if (
+            error.code === "messaging/invalid-registration-token" ||
+            error.code === "messaging/registration-token-not-registered"
+          ) {
+            failedTokens.push(userDoc.id);
+          }
+          failureCount++;
+        }
+      }
+
+      // Update notification document with delivery status
+      await db
+        .collection("notifications")
+        .doc(event.id)
+        .update({
+          deliveredCount: successCount,
+          failedCount: failureCount,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          invalidTokenUsers: failedTokens,
+        });
+
+      console.log(
+        `Notification ${event.id} delivered to ${successCount} users, failed for ${failureCount}`
+      );
+    } catch (error) {
+      console.error(
+        "Error in sendNotificationToUsers:",
+        error.message,
+        error.stack
+      );
+    }
+  }
+);

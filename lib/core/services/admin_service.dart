@@ -5,7 +5,6 @@ import 'package:resqnow_admin/features/admin/data/models/admin_user_model.dart';
 import 'package:resqnow_admin/features/admin/data/models/blood_donor_model.dart';
 import 'package:resqnow_admin/features/admin/data/models/resource_models.dart';
 import 'package:resqnow_admin/features/admin/data/models/analytics_model.dart';
-import 'package:resqnow_admin/core/services/notification_service.dart';
 
 /// Core Admin Service for Firestore operations
 class AdminService {
@@ -193,54 +192,6 @@ class AdminService {
       );
     } catch (e) {
       throw Exception('Failed to delete user: $e');
-    }
-  }
-
-  /// Delete user's donor profile
-  Future<void> _deleteUserDonorProfile(String uid) async {
-    try {
-      final snapshot = await firestore
-          .collection(donorsCollection)
-          .where('userId', isEqualTo: uid)
-          .get();
-
-      for (var doc in snapshot.docs) {
-        await doc.reference.delete();
-      }
-    } catch (e) {
-      // Continue even if donor profile doesn't exist
-    }
-  }
-
-  /// Delete user's call requests
-  Future<void> _deleteUserCallRequests(String uid) async {
-    try {
-      final snapshot = await firestore
-          .collection(callRequestsCollection)
-          .where('userId', isEqualTo: uid)
-          .get();
-
-      for (var doc in snapshot.docs) {
-        await doc.reference.delete();
-      }
-    } catch (e) {
-      // Continue even if call requests don't exist
-    }
-  }
-
-  /// Delete user's notifications
-  Future<void> _deleteUserNotifications(String uid) async {
-    try {
-      final snapshot = await firestore
-          .collection(notificationsCollection)
-          .where('userId', isEqualTo: uid)
-          .get();
-
-      for (var doc in snapshot.docs) {
-        await doc.reference.delete();
-      }
-    } catch (e) {
-      // Continue even if notifications don't exist
     }
   }
 
@@ -1072,23 +1023,73 @@ class AdminService {
   }
 
   /// Send notification to users
+  /// Creates individual notification documents for each matching user
   Future<void> sendNotification({
     required String title,
     required String message,
-    required String
-    recipientType, // 'all_users', 'donors_only', 'specific_district'
+    required String recipientType, // 'all_users', 'donors_only', 'specific_district'
     String? targetDistrict,
   }) async {
     try {
-      await firestore.collection('notifications').add({
-        'title': title,
-        'message': message,
-        'recipientType': recipientType,
-        'targetDistrict': targetDistrict,
-        'sentTime': DateTime.now().toIso8601String(),
-        'deliveredCount': 0,
-      });
+      print('📤 Sending notification to users...');
+      print('   Title: $title');
+      print('   Message: $message');
+      print('   Recipient Type: $recipientType');
+      print('   Target District: $targetDistrict');
+
+      // Build query based on recipient type
+      Query query = firestore.collection(usersCollection);
+
+      if (recipientType == 'donors_only') {
+        // Only send to donors
+        query = query.where('role', isEqualTo: 'donor');
+        if (targetDistrict != null && targetDistrict.isNotEmpty) {
+          query = query.where('district', isEqualTo: targetDistrict);
+        }
+      } else if (recipientType == 'specific_district') {
+        // Send to all users in specific district
+        if (targetDistrict != null && targetDistrict.isNotEmpty) {
+          query = query.where('district', isEqualTo: targetDistrict);
+        }
+      }
+      // else: 'all_users' - send to everyone (no additional filters)
+
+      // Fetch matching users
+      final userDocs = await query.get();
+      print('✅ Found ${userDocs.docs.length} matching users');
+
+      if (userDocs.docs.isEmpty) {
+        print('⚠️ No matching users found for this notification');
+        return;
+      }
+
+      // Create individual notification for each user
+      final batch = firestore.batch();
+      final timestamp = DateTime.now();
+
+      for (final userDoc in userDocs.docs) {
+        final userId = userDoc.id;
+        final notificationRef =
+            firestore.collection(notificationsCollection).doc();
+
+        batch.set(notificationRef, {
+          'userId': userId,
+          'title': title,
+          'message': message,
+          'type': 'general',
+          'createdAt': timestamp,
+          'isRead': false,
+          'recipientType': recipientType,
+          'targetDistrict': targetDistrict,
+        });
+
+        print('📬 Created notification for user: $userId');
+      }
+
+      await batch.commit();
+      print('✅ All ${userDocs.docs.length} notifications created successfully');
     } catch (e) {
+      print('❌ Error sending notification: $e');
       throw Exception('Failed to send notification: $e');
     }
   }
