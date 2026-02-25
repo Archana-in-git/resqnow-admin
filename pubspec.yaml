@@ -46,7 +46,6 @@ flutter:
 
   assets:
     - assets/
-    - assets/icons/
 
   # Remove this entire block if present:
   # fonts:

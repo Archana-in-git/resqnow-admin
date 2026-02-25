@@ -103,187 +103,222 @@ class _UserManagementPageState extends State<UserManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: UserManagementColors.softBackground,
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 1,
+        shadowColor: Colors.black.withOpacity(0.08),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            color: UserManagementColors.textPrimary,
+            size: 24,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           'User Management',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-            color: Colors.white,
-            letterSpacing: 0.3,
+            fontWeight: FontWeight.w700,
+            fontSize: 22,
+            color: UserManagementColors.textPrimary,
+            letterSpacing: -0.3,
           ),
         ),
-        backgroundColor: UserManagementColors.primaryTeal,
-        elevation: 0,
-        toolbarHeight: 80,
         centerTitle: false,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(20),
-            bottomRight: Radius.circular(20),
-          ),
-        ),
       ),
       body: Column(
         children: [
-          // Filter Bar with elegant design
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              children: [
-                // Search Bar
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 12,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search by name or email...',
-                      hintStyle: const TextStyle(
-                        color: UserManagementColors.textSecondary,
-                        fontSize: 14,
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.search,
-                        color: UserManagementColors.textSecondary,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
+          // Content with modern filters
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Filter Section
+                  Container(
+                    padding: const EdgeInsets.all(28),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey[200]!, width: 1),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                // Filters Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildFilterDropdown(
-                        label: 'Role',
-                        value: _selectedRole.isEmpty ? null : _selectedRole,
-                        items: [
-                          ('', 'All Roles'),
-                          ('admin', 'Admin'),
-                          ('support', 'Support'),
-                          ('moderator', 'Moderator'),
-                          ('user', 'User'),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _selectedRole = value ?? '');
-                          _applyFilters();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildFilterDropdown(
-                        label: 'Status',
-                        value: _selectedStatus.isEmpty ? null : _selectedStatus,
-                        items: [
-                          ('', 'All Status'),
-                          ('active', 'Active'),
-                          ('suspended', 'Suspended'),
-                          ('pending', 'Pending'),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _selectedStatus = value ?? '');
-                          _applyFilters();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              _searchController.clear();
-                              _selectedRole = '';
-                              _selectedStatus = '';
-                            });
-                            _applyFilters();
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.clear,
-                                color: UserManagementColors.textSecondary,
-                                size: 20,
-                              ),
-                              SizedBox(width: 6),
-                              Text(
-                                'Clear',
-                                style: TextStyle(
-                                  color: UserManagementColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
+                    child: Column(
+                      children: [
+                        // Search Bar
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 20,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: 'Search by name, email...',
+                              hintStyle: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 15,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              prefixIcon: Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 20,
+                                  right: 12,
+                                ),
+                                child: Icon(
+                                  Icons.search_rounded,
+                                  color: Colors.grey[400],
+                                  size: 24,
+                                ),
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 18,
+                              ),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? GestureDetector(
+                                      onTap: () {
+                                        _searchController.clear();
+                                        FocusScope.of(context).unfocus();
+                                        _applyFilters();
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 16,
+                                        ),
+                                        child: Icon(
+                                          Icons.close_rounded,
+                                          color: Colors.grey[400],
+                                          size: 20,
+                                        ),
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Stats Bar
-          UserStatsWidget(users: _filteredUsers),
-          // User List
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: UserManagementColors.primaryTeal,
-                    ),
-                  )
-                : _filteredUsers.isEmpty
-                ? const EmptyUserListWidget()
-                : Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
-                    child: ListView.builder(
-                      itemCount: _filteredUsers.length,
-                      itemBuilder: (context, index) {
-                        final user = _filteredUsers[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildUserTile(user),
-                        );
-                      },
+                        const SizedBox(height: 20),
+                        // Filter chips
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildFilterDropdown(
+                                label: 'Role',
+                                value: _selectedRole.isEmpty
+                                    ? null
+                                    : _selectedRole,
+                                items: [
+                                  ('', 'All Roles'),
+                                  ('admin', 'Admin'),
+                                  ('support', 'Support'),
+                                  ('moderator', 'Moderator'),
+                                  ('user', 'User'),
+                                ],
+                                onChanged: (value) {
+                                  setState(() => _selectedRole = value ?? '');
+                                  _applyFilters();
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildFilterDropdown(
+                                label: 'Status',
+                                value: _selectedStatus.isEmpty
+                                    ? null
+                                    : _selectedStatus,
+                                items: [
+                                  ('', 'All Status'),
+                                  ('active', 'Active'),
+                                  ('suspended', 'Suspended'),
+                                  ('pending', 'Pending'),
+                                ],
+                                onChanged: (value) {
+                                  setState(() => _selectedStatus = value ?? '');
+                                  _applyFilters();
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _searchController.clear();
+                                  _selectedRole = '';
+                                  _selectedStatus = '';
+                                });
+                                _applyFilters();
+                              },
+                              child: Container(
+                                height: 56,
+                                width: 56,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.06),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  Icons.refresh_rounded,
+                                  color: UserManagementColors.primaryTeal,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
+                  // Stats Bar
+                  UserStatsWidget(users: _filteredUsers),
+                  // User List
+                  _isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(40),
+                          child: CircularProgressIndicator(
+                            color: UserManagementColors.primaryTeal,
+                          ),
+                        )
+                      : _filteredUsers.isEmpty
+                      ? const EmptyUserListWidget()
+                      : Container(
+                          color: Colors.white,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 28,
+                              vertical: 24,
+                            ),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _filteredUsers.length,
+                              itemBuilder: (context, index) {
+                                final user = _filteredUsers[index];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 14),
+                                  child: _buildUserTile(user),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -299,12 +334,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 1),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -312,14 +347,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
         value: value,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(
-            color: UserManagementColors.textSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+          labelStyle: TextStyle(
+            color: Colors.grey[500],
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
           ),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
+            horizontal: 18,
+            vertical: 14,
           ),
           border: InputBorder.none,
           floatingLabelBehavior: FloatingLabelBehavior.auto,
@@ -331,17 +367,19 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 child: Text(
                   item.$2,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     color: UserManagementColors.textPrimary,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
             )
             .toList(),
         onChanged: onChanged,
-        icon: const Icon(
-          Icons.expand_more,
-          color: UserManagementColors.textSecondary,
+        icon: Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: UserManagementColors.primaryTeal,
+          size: 24,
         ),
       ),
     );
@@ -379,268 +417,264 @@ class _UserManagementPageState extends State<UserManagementPage> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(28.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with gradient
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      UserManagementColors.primaryTeal,
+                      UserManagementColors.primaryDarkTeal,
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(28, 24, 28, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'User Details',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: UserManagementColors.textPrimary,
-                      ),
-                    ),
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => Navigator.pop(context),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: UserManagementColors.softBackground,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            color: UserManagementColors.textSecondary,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'User Profile',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: -0.3,
                           ),
                         ),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              radius: 52,
+                              backgroundColor: Colors.white,
+                              backgroundImage: user.profileImage != null
+                                  ? NetworkImage(user.profileImage!)
+                                  : null,
+                              child: user.profileImage == null
+                                  ? const Icon(
+                                      Icons.person_rounded,
+                                      size: 52,
+                                      color: UserManagementColors.primaryTeal,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            user.name,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              UserHelper.getRoleBadge(user.role),
+                              const SizedBox(width: 10),
+                              UserHelper.getStatusBadge(user),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                Center(
-                  child: Column(
-                    children: [
+              ),
+              // Details section
+              Padding(
+                padding: const EdgeInsets.all(28.0),
+                child: Column(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey[200]!, width: 1),
+                      ),
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          _buildModernDetailRow('Email', user.email),
+                          const SizedBox(height: 20),
+                          _buildModernDetailRow(
+                            'Role',
+                            UserHelper.getRoleDisplayName(user.role),
+                          ),
+                          const SizedBox(height: 20),
+                          _buildModernDetailRow('Status', user.accountStatus),
+                          const SizedBox(height: 20),
+                          _buildModernDetailRow(
+                            'Created',
+                            UserHelper.formatDate(user.createdAt),
+                          ),
+                          if (user.lastLogin != null) ...[
+                            const SizedBox(height: 20),
+                            _buildModernDetailRow(
+                              'Last Login',
+                              UserHelper.formatDateTime(user.lastLogin!),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (user.accountStatus != 'active') ...[
+                      const SizedBox(height: 20),
                       Container(
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              UserManagementColors.primaryTeal,
-                              UserManagementColors.primaryDarkTeal,
+                              UserManagementColors.warningAmber.withOpacity(
+                                0.12,
+                              ),
+                              UserManagementColors.warningAmber.withOpacity(
+                                0.06,
+                              ),
                             ],
                           ),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: UserManagementColors.primaryTeal
-                                  .withOpacity(0.3),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: UserManagementColors.warningAmber
+                                .withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: UserManagementColors.warningAmber
+                                    .withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.warning_rounded,
+                                color: UserManagementColors.warningAmber,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Account: ${user.accountStatus}',
+                                style: const TextStyle(
+                                  color: UserManagementColors.warningAmber,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        child: CircleAvatar(
-                          radius: 50,
-                          backgroundColor: Colors.transparent,
-                          backgroundImage: user.profileImage != null
-                              ? NetworkImage(user.profileImage!)
-                              : null,
-                          child: user.profileImage == null
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 50,
-                                  color: Colors.white,
-                                )
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        user.name,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: UserManagementColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          UserHelper.getRoleBadge(user.role),
-                          const SizedBox(width: 10),
-                          UserHelper.getStatusBadge(user),
-                        ],
                       ),
                     ],
-                  ),
-                ),
-                const SizedBox(height: 28),
-                Container(
-                  decoration: BoxDecoration(
-                    color: UserManagementColors.softBackground,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: UserManagementColors.dividerColor,
-                      width: 1,
-                    ),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _buildDetailRow('Email:', user.email),
-                      _buildDivider(),
-                      _buildDetailRow(
-                        'Role:',
-                        UserHelper.getRoleDisplayName(user.role),
-                      ),
-                      _buildDivider(),
-                      _buildDetailRow('Status:', user.accountStatus),
-                      _buildDivider(),
-                      _buildDetailRow(
-                        'Account Created:',
-                        UserHelper.formatDate(user.createdAt),
-                      ),
-                      if (user.lastLogin != null) ...[
-                        _buildDivider(),
-                        _buildDetailRow(
-                          'Last Login:',
-                          UserHelper.formatDateTime(user.lastLogin!),
-                        ),
-                      ],
-                      _buildDivider(),
-                      _buildDetailRow(
-                        'Email Verified:',
-                        user.emailVerified ? '✓ Yes' : '✗ No',
-                      ),
-                      if (user.isBlocked ||
-                          user.accountStatus == 'suspended') ...[
-                        _buildDivider(),
-                        _buildDetailRow(
-                          'Blocked:',
-                          user.isBlocked ? '✓ Yes' : '✗ No',
-                        ),
-                        if (user.suspendedAt != null) ...[
-                          _buildDivider(),
-                          _buildDetailRow(
-                            'Suspended At:',
-                            UserHelper.formatDateTime(user.suspendedAt!),
-                          ),
-                        ],
-                        if (user.suspensionReason != null) ...[
-                          _buildDivider(),
-                          _buildDetailRow(
-                            'Suspension Reason:',
-                            user.suspensionReason!,
-                          ),
-                        ],
-                      ],
-                    ],
-                  ),
-                ),
-                if (user.accountStatus != 'active') ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: UserManagementColors.warningAmber.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: UserManagementColors.warningAmber.withOpacity(
-                          0.3,
-                        ),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
+                    const SizedBox(height: 28),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Icon(
-                          Icons.warning_rounded,
-                          color: UserManagementColors.warningAmber,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Status: ${user.accountStatus}${user.isBlocked ? ' (Blocked)' : ''}',
-                            style: const TextStyle(
-                              color: UserManagementColors.warningAmber,
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                          ),
+                          child: const Text(
+                            'Close',
+                            style: TextStyle(
+                              color: UserManagementColors.textSecondary,
                               fontWeight: FontWeight.w600,
-                              fontSize: 13,
+                              fontSize: 14,
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                      ),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(
-                          color: UserManagementColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildDivider() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Divider(color: UserManagementColors.dividerColor, height: 1),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: UserManagementColors.textSecondary,
-                fontSize: 13,
-              ),
+  Widget _buildModernDetailRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: UserManagementColors.textSecondary,
+              fontSize: 12,
+              letterSpacing: 0.3,
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: UserManagementColors.textPrimary,
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: UserManagementColors.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -652,136 +686,159 @@ class _UserManagementPageState extends State<UserManagementPage> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(28.0),
-            child: StatefulBuilder(
-              builder: (context, setState) => Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Edit User',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: UserManagementColors.textPrimary,
-                        ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with gradient
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      UserManagementColors.primaryTeal,
+                      UserManagementColors.primaryDarkTeal,
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Edit User',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: -0.3,
                       ),
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => Navigator.pop(context),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: UserManagementColors.softBackground,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              color: UserManagementColors.textSecondary,
-                            ),
-                          ),
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  _buildStyledTextField(
-                    controller: nameController,
-                    label: 'Name',
-                    icon: Icons.person,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildStyledDropdown(
-                    label: 'Role',
-                    value: selectedRole,
-                    items: ['admin', 'support', 'moderator', 'user']
-                        .map(
-                          (role) => (role, UserHelper.getRoleDisplayName(role)),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() => selectedRole = value ?? user.role);
-                    },
-                    icon: Icons.security,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildStyledDropdown(
-                    label: 'Status',
-                    value: selectedStatus,
-                    items: [
-                      'active',
-                      'suspended',
-                      'pending',
-                    ].map((status) => (status, status.toUpperCase())).toList(),
-                    onChanged: (value) {
-                      setState(
-                        () => selectedStatus = value ?? user.accountStatus,
-                      );
-                    },
-                    icon: Icons.assignment_turned_in,
-                  ),
-                  const SizedBox(height: 28),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                        ),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(
-                            color: UserManagementColors.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: () {
-                          _updateUser(
-                            user,
-                            nameController.text,
-                            selectedRole,
-                            selectedStatus,
-                          );
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: UserManagementColors.primaryTeal,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Save Changes',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
+              // Form fields
+              Padding(
+                padding: const EdgeInsets.all(28.0),
+                child: StatefulBuilder(
+                  builder: (context, setState) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildStyledTextField(
+                        controller: nameController,
+                        label: 'Full Name',
+                        icon: Icons.person_rounded,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildStyledDropdown(
+                        label: 'Role',
+                        value: selectedRole,
+                        items: ['admin', 'support', 'moderator', 'user']
+                            .map(
+                              (role) =>
+                                  (role, UserHelper.getRoleDisplayName(role)),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() => selectedRole = value ?? user.role);
+                        },
+                        icon: Icons.security_rounded,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildStyledDropdown(
+                        label: 'Account Status',
+                        value: selectedStatus,
+                        items: ['active', 'suspended', 'pending']
+                            .map((status) => (status, status.toUpperCase()))
+                            .toList(),
+                        onChanged: (value) {
+                          setState(
+                            () => selectedStatus = value ?? user.accountStatus,
+                          );
+                        },
+                        icon: Icons.assignment_turned_in_rounded,
+                      ),
+                      const SizedBox(height: 32),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                            ),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: UserManagementColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: () {
+                              _updateUser(
+                                user,
+                                nameController.text,
+                                selectedRole,
+                                selectedStatus,
+                              );
+                              Navigator.pop(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: UserManagementColors.primaryTeal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 28,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'Save Changes',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -796,11 +853,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
             offset: const Offset(0, 2),
           ),
         ],
@@ -809,15 +866,23 @@ class _UserManagementPageState extends State<UserManagementPage> {
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: UserManagementColors.primaryTeal),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 18, right: 12),
+            child: Icon(
+              icon,
+              color: UserManagementColors.primaryTeal,
+              size: 22,
+            ),
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
+            horizontal: 18,
+            vertical: 18,
           ),
-          labelStyle: const TextStyle(
-            color: UserManagementColors.textSecondary,
-            fontWeight: FontWeight.w500,
+          labelStyle: TextStyle(
+            color: Colors.grey[500],
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
           ),
         ),
       ),
@@ -834,11 +899,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
             offset: const Offset(0, 2),
           ),
         ],
@@ -847,15 +912,23 @@ class _UserManagementPageState extends State<UserManagementPage> {
         value: value,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: UserManagementColors.primaryTeal),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 18, right: 12),
+            child: Icon(
+              icon,
+              color: UserManagementColors.primaryTeal,
+              size: 22,
+            ),
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 10,
+            horizontal: 18,
+            vertical: 18,
           ),
-          labelStyle: const TextStyle(
-            color: UserManagementColors.textSecondary,
-            fontWeight: FontWeight.w500,
+          labelStyle: TextStyle(
+            color: Colors.grey[500],
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
           ),
         ),
         items: items
@@ -867,15 +940,17 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   style: const TextStyle(
                     color: UserManagementColors.textPrimary,
                     fontWeight: FontWeight.w500,
+                    fontSize: 14,
                   ),
                 ),
               ),
             )
             .toList(),
         onChanged: onChanged,
-        icon: const Icon(
-          Icons.expand_more,
-          color: UserManagementColors.textSecondary,
+        icon: Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: UserManagementColors.primaryTeal,
+          size: 24,
         ),
       ),
     );
@@ -885,124 +960,184 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final reasonController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: UserManagementColors.warningAmber.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.warning_rounded,
-                color: UserManagementColors.warningAmber,
-                size: 26,
-              ),
+      builder: (context) => Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 450),
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
             ),
-            const SizedBox(width: 12),
-            const Text(
-              'Suspend User',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: UserManagementColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Are you sure you want to suspend ${user.name}?',
-              style: const TextStyle(
-                color: UserManagementColors.textPrimary,
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Reason for suspension (optional):',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: UserManagementColors.textSecondary,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                color: UserManagementColors.softBackground,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: UserManagementColors.dividerColor,
-                  width: 1,
-                ),
-              ),
-              child: TextField(
-                controller: reasonController,
-                decoration: InputDecoration(
-                  hintText: 'Enter reason...',
-                  hintStyle: const TextStyle(
-                    color: UserManagementColors.textSecondary,
-                    fontSize: 13,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header with gradient
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          UserManagementColors.warningAmber,
+                          UserManagementColors.warningAmber.withOpacity(0.8),
+                        ],
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Suspend User',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
+                  // Content
+                  Padding(
+                    padding: const EdgeInsets.all(28.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Are you sure you want to suspend ${user.name}?',
+                          style: const TextStyle(
+                            color: UserManagementColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Reason for suspension',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: UserManagementColors.textSecondary,
+                            fontSize: 13,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 12,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            controller: reasonController,
+                            decoration: InputDecoration(
+                              hintText: 'Enter reason...',
+                              hintStyle: const TextStyle(
+                                color: Color(0xFFB0BEC5),
+                                fontSize: 14,
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 14,
+                              ),
+                            ),
+                            maxLines: 3,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
+                              ),
+                              child: const Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: UserManagementColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton(
+                              onPressed: () {
+                                final reason = reasonController.text.trim();
+                                _suspendUser(
+                                  user,
+                                  reason.isEmpty
+                                      ? 'Suspended by admin for suspicious activity'
+                                      : reason,
+                                );
+                                Navigator.pop(context);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    UserManagementColors.warningAmber,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 28,
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                'Suspend',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                maxLines: 3,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                color: UserManagementColors.textSecondary,
-                fontWeight: FontWeight.w600,
+                ],
               ),
             ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              final reason = reasonController.text.trim();
-              _suspendUser(
-                user,
-                reason.isEmpty
-                    ? 'Suspended by admin for suspicious activity'
-                    : reason,
-              );
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: UserManagementColors.warningAmber,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text(
-              'Suspend',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1052,37 +1187,173 @@ class _UserManagementPageState extends State<UserManagementPage> {
   void _showDeleteDialog(AdminUserModel user) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete User'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Are you sure you want to delete ${user.name}?',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+      builder: (context) => Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 450),
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'This action cannot be undone. All user data will be permanently deleted.',
-              style: TextStyle(color: Colors.red, fontSize: 12),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header with gradient
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Colors.red[600]!, Colors.red[700]!],
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Delete User',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Content
+                  Padding(
+                    padding: const EdgeInsets.all(28.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.red[50],
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(
+                            Icons.warning_rounded,
+                            size: 40,
+                            color: Colors.red[600],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Are you sure?',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: UserManagementColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        RichText(
+                          textAlign: TextAlign.center,
+                          text: TextSpan(
+                            text: 'You are about to delete ',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: UserManagementColors.textSecondary,
+                              height: 1.6,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: user.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: UserManagementColors.textPrimary,
+                                ),
+                              ),
+                              const TextSpan(
+                                text: '. This action cannot be undone.',
+                                style: TextStyle(
+                                  color: UserManagementColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
+                              ),
+                              child: const Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: UserManagementColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton(
+                              onPressed: () {
+                                _deleteUser(user);
+                                Navigator.pop(context);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red[600],
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 28,
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                'Delete',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              _deleteUser(user);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }

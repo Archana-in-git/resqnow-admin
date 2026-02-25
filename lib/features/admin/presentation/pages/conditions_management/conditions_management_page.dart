@@ -78,13 +78,13 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Medical Conditions Management'),
+        title: Text('Medical Conditions Management (${_conditions.length})'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         elevation: 0,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddEditDialog(),
-        backgroundColor: Colors.blue.shade600,
+        backgroundColor: const Color(0xFF00796B),
         child: const Icon(Icons.add, size: 28),
       ),
       body: _isLoading
@@ -97,13 +97,13 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade100,
+                      color: const Color(0xFF00796B).withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.health_and_safety,
                       size: 64,
-                      color: Colors.blue.shade600,
+                      color: const Color(0xFF00796B),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -123,7 +123,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                     icon: const Icon(Icons.add),
                     label: const Text('Add Condition'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade600,
+                      backgroundColor: const Color(0xFF00796B),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 32,
                         vertical: 12,
@@ -137,8 +137,8 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
+                mainAxisSpacing: 13,
+                crossAxisSpacing: 13,
                 childAspectRatio: 2.4,
               ),
               itemCount: _conditions.length,
@@ -182,272 +182,199 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
     final severity = condition.severity.toLowerCase();
     final colorScheme = severityMap[severity] ?? severityMap['low']!;
 
-    return GestureDetector(
-      onTap: () => _showConditionDetailsDialog(condition),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 0),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: (colorScheme['color'] as Color).withOpacity(0.12),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Stack(
-            children: [
-              // Background gradient
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      colorScheme['bgGradient1'] as Color,
-                      colorScheme['bgGradient2'] as Color,
-                    ],
-                  ),
-                ),
-              ),
-              // Glassmorphism effect
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.95),
-                ),
-              ),
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Header
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: colorScheme['lightBg'] as Color,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.health_and_safety,
-                            color: colorScheme['color'] as Color,
-                            size: 22,
-                          ),
+    return Container(
+      margin: const EdgeInsets.all(0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: (colorScheme['color'] as Color).withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          children: [
+            // Background - white color
+            Container(decoration: const BoxDecoration(color: Colors.white)),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Header
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: colorScheme['lightBg'] as Color,
+                          borderRadius: BorderRadius.circular(7),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                condition.name,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                  height: 1.1,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                        child: Icon(
+                          Icons.health_and_safety,
+                          color: colorScheme['color'] as Color,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              condition.name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                                height: 1.15,
                               ),
-                              const SizedBox(height: 2),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: (colorScheme['color'] as Color)
-                                      .withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  condition.severity.toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: colorScheme['color'] as Color,
-                                    height: 1.0,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: PopupMenuButton<String>(
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(
-                                value: 'edit',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.edit, size: 14),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Edit',
-                                      style: TextStyle(fontSize: 11),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const PopupMenuItem(
-                                value: 'delete',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.delete,
-                                      size: 14,
-                                      color: Colors.red,
-                                    ),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Delete',
-                                      style: TextStyle(
-                                        color: Colors.red,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                _showAddEditDialog(condition: condition);
-                              } else if (value == 'delete') {
-                                _showDeleteDialog(condition);
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-
-                    // Stats row  - more compact
-                    Row(
-                      children: [
-                        _buildStatBadgeCompact(
-                          Icons.person_4,
-                          condition.doctorType.length,
-                          'Dr',
-                        ),
-                        const SizedBox(width: 4),
-                        _buildStatBadgeCompact(
-                          Icons.directions_walk,
-                          condition.firstAidDescription.length,
-                          'St',
-                        ),
-                        const SizedBox(width: 4),
-                        _buildStatBadgeCompact(
-                          Icons.image,
-                          condition.imageUrls.length,
-                          'Img',
-                        ),
-                        const SizedBox(width: 4),
-                        _buildStatBadgeCompact(
-                          Icons.help,
-                          condition.faqs.length,
-                          'FAQ',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-
-                    // Specialists preview (simplified)
-                    if (condition.doctorType.isNotEmpty)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Specialists',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.w600,
-                              height: 1.0,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Wrap(
-                            spacing: 3,
-                            runSpacing: 2,
-                            children: condition.doctorType
-                                .take(1)
-                                .map(
-                                  (doctor) => Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 7,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.shade50,
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: Colors.blue.shade200,
-                                        width: 0.5,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      doctor,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.blue.shade700,
-                                        fontWeight: FontWeight.w500,
-                                        height: 1.0,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                          if (condition.doctorType.length > 1)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
+                            const SizedBox(height: 3),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: (colorScheme['color'] as Color)
+                                    .withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
                               child: Text(
-                                '+${condition.doctorType.length - 1}',
+                                condition.severity.toUpperCase(),
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme['color'] as Color,
                                   height: 1.0,
                                 ),
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: PopupMenuButton<String>(
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, size: 14),
+                                  SizedBox(width: 6),
+                                  Text('Edit', style: TextStyle(fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.delete,
+                                    size: 14,
+                                    color: Colors.red,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Delete',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              _showAddEditDialog(condition: condition);
+                            } else if (value == 'delete') {
+                              _showDeleteDialog(condition);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  // First Aid Steps Count
+                  if (condition.firstAidDescription.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.green.shade300,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.playlist_add_check,
+                            size: 14,
+                            color: Colors.green.shade600,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${condition.firstAidDescription.length} Steps',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ],
                       ),
-                  ],
-                ),
-              ),
-              // Top accent bar
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: 3,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        colorScheme['bgGradient1'] as Color,
-                        colorScheme['bgGradient2'] as Color,
-                      ],
+                    ),
+
+                  // View Details Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 30,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showConditionDetailsDialog(condition),
+                      icon: const Icon(Icons.remove_red_eye, size: 14),
+                      label: const Text(
+                        'View Details',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00796B),
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        elevation: 0,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -653,15 +580,6 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                     _buildKitsCardSection(
                       'Required Kits',
                       condition.requiredKits,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // FAQs
-                  if (condition.faqs.isNotEmpty) ...[
-                    _buildFaqsCardSection(
-                      'Frequently Asked Questions',
-                      condition.faqs,
                     ),
                     const SizedBox(height: 16),
                   ],

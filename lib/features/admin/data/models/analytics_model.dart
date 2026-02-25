@@ -2,11 +2,15 @@
 
 class AnalyticsStats {
   final int totalUsers;
+  final int
+  activeUsersCount; // Users with accountStatus = 'active' and isBlocked = false
+  final int suspendedUsersCount;
   final int newUsersLastWeek;
+  final int activeNewUsersLastWeek; // New users that are still active
   final int activeDonors;
   final int emergencyClicksToday;
   final String mostSearchedCondition;
-  final int activeUsers;
+  final int activeSessions; // Users with active login sessions
 
   // Growth percentages
   final double userGrowthPercent;
@@ -16,11 +20,14 @@ class AnalyticsStats {
 
   AnalyticsStats({
     required this.totalUsers,
+    required this.activeUsersCount,
+    required this.suspendedUsersCount,
     required this.newUsersLastWeek,
+    required this.activeNewUsersLastWeek,
     required this.activeDonors,
     required this.emergencyClicksToday,
     required this.mostSearchedCondition,
-    required this.activeUsers,
+    required this.activeSessions,
     this.userGrowthPercent = 0.0,
     this.donorGrowthPercent = 0.0,
     this.emergencyTrendsPercent = 0.0,
@@ -29,11 +36,14 @@ class AnalyticsStats {
 
   factory AnalyticsStats.empty() => AnalyticsStats(
     totalUsers: 0,
+    activeUsersCount: 0,
+    suspendedUsersCount: 0,
     newUsersLastWeek: 0,
+    activeNewUsersLastWeek: 0,
     activeDonors: 0,
     emergencyClicksToday: 0,
     mostSearchedCondition: 'N/A',
-    activeUsers: 0,
+    activeSessions: 0,
   );
 }
 
