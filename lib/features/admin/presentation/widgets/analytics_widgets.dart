@@ -170,6 +170,11 @@ class UserGrowthChart extends StatelessWidget {
                                 color: const Color(0xFF00796B),
                                 borderRadius: BorderRadius.circular(4),
                               ),
+                              child: Tooltip(
+                                message:
+                                    '${data.months[index]}: ${data.userCounts[index]} users',
+                                child: const SizedBox.expand(),
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Text(

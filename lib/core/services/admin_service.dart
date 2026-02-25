@@ -731,13 +731,15 @@ class AdminService {
         newUsersLastWeek = newUsersSnap.docs.length;
 
         // Count active new users
-        activeNewUsersLastWeek = newUsersSnap.docs
-            .where(
-              (doc) =>
-                  doc.get('accountStatus') == 'active' &&
-                  (doc.get('isBlocked') as bool?) == false,
-            )
-            .length;
+        activeNewUsersLastWeek = newUsersSnap.docs.where((doc) {
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            return (data['accountStatus'] as String?) == 'active' &&
+                (data['isBlocked'] as bool?) == false;
+          } catch (e) {
+            return false;
+          }
+        }).length;
       } catch (e) {
         print('Error fetching new users: $e');
         newUsersLastWeek = 0;
@@ -862,30 +864,30 @@ class AdminService {
             '${monthDate.year}-${monthDate.month.toString().padLeft(2, '0')}';
         monthLabels.add(monthStr);
 
-        // Get user count for this month
-        final startOfMonth = DateTime(
-          monthDate.year,
-          monthDate.month,
-          1,
-        ).toIso8601String();
-        final endOfMonth = DateTime(
-          monthDate.year,
-          monthDate.month + 1,
-          1,
-        ).toIso8601String();
+        // Get user count for this month using Firestore Timestamps
+        final startOfMonth = Timestamp.fromDate(
+          DateTime(monthDate.year, monthDate.month, 1),
+        );
+        final endOfMonth = Timestamp.fromDate(
+          DateTime(monthDate.year, monthDate.month + 1, 1),
+        );
 
-        final snap = await firestore
-            .collection(usersCollection)
-            .where('createdAt', isGreaterThanOrEqualTo: startOfMonth)
-            .where('createdAt', isLessThan: endOfMonth)
-            .count()
-            .get();
-
-        userCounts.add(snap.count ?? 0);
+        try {
+          final snap = await firestore
+              .collection(usersCollection)
+              .where('createdAt', isGreaterThanOrEqualTo: startOfMonth)
+              .where('createdAt', isLessThan: endOfMonth)
+              .count()
+              .get();
+          userCounts.add(snap.count ?? 0);
+        } catch (e) {
+          userCounts.add(0);
+        }
       }
 
       return UserGrowthData(months: monthLabels, userCounts: userCounts);
     } catch (e) {
+      print('Error fetching user growth data: $e');
       // Return empty chart on error instead of throwing
       return UserGrowthData(months: [], userCounts: []);
     }

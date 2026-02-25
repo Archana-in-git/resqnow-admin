@@ -210,7 +210,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     children: [
                                       _buildRealTimeActivitySection(),
                                       const SizedBox(height: 20),
-                                      _buildContentStatusSection(),
+                                      _buildBloodDonorAnalyticsSection(),
                                     ],
                                   ),
                                 ),
@@ -223,7 +223,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 const SizedBox(height: 20),
                                 _buildRealTimeActivitySection(),
                                 const SizedBox(height: 20),
-                                _buildContentStatusSection(),
+                                _buildBloodDonorAnalyticsSection(),
                               ],
                             ),
 
@@ -278,16 +278,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               ),
               const SizedBox(width: 16),
               StatCard(
-                icon: Icons.check_circle,
-                title: 'Active Users',
-                value: stats.activeUsersCount.toString(),
-                description: 'Accounts in good standing',
-                growthPercent: stats.activeUsersPercent,
-                backgroundColor: const Color(0xFFC8E6C9),
-                iconColor: AdminDashboardColors.success,
-              ),
-              const SizedBox(width: 16),
-              StatCard(
                 icon: Icons.block,
                 title: 'Suspended',
                 value: stats.suspendedUsersCount.toString(),
@@ -305,16 +295,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 growthPercent: 2.5,
                 backgroundColor: const Color(0xFFF3E5F5),
                 iconColor: const Color(0xFF6A1B9A),
-              ),
-              const SizedBox(width: 16),
-              StatCard(
-                icon: Icons.bloodtype,
-                title: 'Active Donors',
-                value: stats.activeDonors.toString(),
-                description: 'Available for donation',
-                growthPercent: stats.donorGrowthPercent,
-                backgroundColor: const Color(0xFFFFEBEE),
-                iconColor: AdminDashboardColors.accentColor,
               ),
               const SizedBox(width: 16),
               StatCard(
@@ -336,20 +316,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 backgroundColor: const Color(0xFFF3E5F5),
                 iconColor: const Color(0xFF6A1B9A),
               ),
-              const SizedBox(width: 16),
-              StatCard(
-                icon: Icons.search,
-                title: 'Top Searched',
-                value: stats.mostSearchedCondition.length > 15
-                    ? '${stats.mostSearchedCondition.substring(0, 15)}...'
-                    : stats.mostSearchedCondition,
-                description: 'Most searched condition',
-                backgroundColor: const Color(0xFFFFF8E1),
-                iconColor: AdminDashboardColors.warning,
-              ),
-              const SizedBox(width: 16),
-              // Call Request Stats Cards
-              _buildCallRequestStatsCards(),
             ],
           ),
         );
@@ -520,6 +486,125 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         }
         return ContentStatusWidget(metrics: data);
       },
+    );
+  }
+
+  Widget _buildBloodDonorAnalyticsSection() {
+    return _buildBloodDonorCardsGrid();
+  }
+
+  Widget _buildBloodDonorCardsGrid() {
+    return FutureBuilder<models.AnalyticsStats>(
+      future: _analyticsStatsFuture,
+      builder: (context, snapshot1) {
+        if (snapshot1.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final stats = snapshot1.data ?? models.AnalyticsStats.empty();
+
+        return FutureBuilder<Map<String, int>>(
+          future: _callRequestStatsFuture,
+          builder: (context, snapshot2) {
+            if (snapshot2.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final callStats = snapshot2.data ?? {};
+            final pending = callStats['pending'] ?? 0;
+            final approved = callStats['approved'] ?? 0;
+
+            return GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _buildBloodDonorCard(
+                  icon: Icons.bloodtype,
+                  title: 'Active Donors',
+                  value: stats.activeDonors.toString(),
+                  color: AdminDashboardColors.accentColor,
+                  bgColor: Colors.white,
+                ),
+                _buildBloodDonorCard(
+                  icon: Icons.search,
+                  title: 'Top Searched',
+                  value: stats.mostSearchedCondition.length > 12
+                      ? '${stats.mostSearchedCondition.substring(0, 12)}...'
+                      : stats.mostSearchedCondition,
+                  color: AdminDashboardColors.warning,
+                  bgColor: Colors.white,
+                ),
+                _buildBloodDonorCard(
+                  icon: Icons.hourglass_empty,
+                  title: 'Pending Calls',
+                  value: pending.toString(),
+                  color: Colors.orange,
+                  bgColor: Colors.white,
+                ),
+                _buildBloodDonorCard(
+                  icon: Icons.check_circle,
+                  title: 'Approved Calls',
+                  value: approved.toString(),
+                  color: AdminDashboardColors.success,
+                  bgColor: Colors.white,
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBloodDonorCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+    required Color bgColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AdminDashboardColors.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
