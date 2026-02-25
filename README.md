@@ -19,7 +19,7 @@ This project now uses Firebase Cloud Functions for admin-enforced account lifecy
   - clears suspension metadata
 
 - `deleteUserAccountCompletely`:
-  - removes email from `blocked_emails` collection
+  - keeps email in `blocked_emails` collection with status "deleted" to prevent re-signup
   - deletes known profile/history data from Firestore (`users`, `donors`, `call_requests`, `notifications`, `user_sessions`)
   - deletes Firebase Auth user record
 
@@ -27,22 +27,25 @@ The admin Flutter app calls these as callable functions from `AdminService`.
 
 ## Blocked Emails Collection
 
-A new `blocked_emails` collection automatically maintains a list of suspended/blocked accounts:
+A new `blocked_emails` collection automatically maintains a list of suspended/blocked and deleted accounts:
 
 - **Document ID**: Email address (lowercase)
 - **Fields**:
   - `email`: The blocked email address
   - `uid`: User ID
-  - `blockedAt`: Timestamp of suspension
-  - `reason`: Reason for suspension
-  - `blockedBy`: UID of admin who suspended
-  - `status`: 'suspended' or 'deleted'
+  - `blockedAt`: Timestamp of suspension or deletion
+  - `reason`: Reason for blocking
+  - `blockedBy`: UID of admin who performed the action
+  - `status`: 'suspended', or 'deleted'
+  - `deletedAt`: (optional) Timestamp when account was deleted
 
 This collection can be used for:
 
-- Preventing new signups with blocked emails
+- Preventing new signups with blocked emails (both suspended and deleted)
 - Security audits and compliance
-- Quick lookups of suspended accounts
+- Quick lookups of suspended and deleted accounts
+
+**Important**: When an account is deleted, the email remains in `blocked_emails` with status "deleted" to prevent re-signup with the same email.
 
 ## Analytics Improvements
 

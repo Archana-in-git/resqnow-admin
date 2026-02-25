@@ -253,9 +253,23 @@ exports.deleteUserAccountCompletely = onCall(async (request) => {
 
   await userRef.delete();
 
-  // Remove email from blocked_emails collection
+  // Keep email in blocked_emails collection with status "deleted" to prevent re-signup
   if (email && email.length > 0) {
-    await db.collection("blocked_emails").doc(email).delete();
+    await db
+      .collection("blocked_emails")
+      .doc(email)
+      .set(
+        {
+          email: email,
+          uid: uid,
+          blockedAt: admin.firestore.FieldValue.serverTimestamp(),
+          reason: "Account deleted by admin",
+          blockedBy: request.auth.uid,
+          status: "deleted",
+          deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
   }
 
   try {
