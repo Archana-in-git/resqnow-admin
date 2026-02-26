@@ -53,17 +53,21 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
         _filteredResources = _resources;
       } else {
         _filteredResources = _resources
-            .where((resource) =>
-                resource.name.toLowerCase().contains(query) ||
-                resource.description.toLowerCase().contains(query) ||
-                resource.tags.any((tag) => tag.toLowerCase().contains(query)))
+            .where(
+              (resource) =>
+                  resource.name.toLowerCase().contains(query) ||
+                  resource.description.toLowerCase().contains(query) ||
+                  resource.tags.any((tag) => tag.toLowerCase().contains(query)),
+            )
             .toList();
       }
     });
   }
 
   void _showErrorSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -96,29 +100,32 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredResources.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.image_not_supported,
-                                size: 64, color: Colors.grey[400]),
-                            const SizedBox(height: 16),
-                            Text(
-                              _searchController.text.isEmpty
-                                  ? 'No resources found'
-                                  : 'No matching resources found',
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.image_not_supported,
+                          size: 64,
+                          color: Colors.grey[400],
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: _filteredResources.length,
-                        itemBuilder: (context, index) {
-                          final resource = _filteredResources[index];
-                          return _buildResourceTile(resource);
-                        },
-                      ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchController.text.isEmpty
+                              ? 'No resources found'
+                              : 'No matching resources found',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _filteredResources.length,
+                    itemBuilder: (context, index) {
+                      final resource = _filteredResources[index];
+                      return _buildResourceTile(resource);
+                    },
+                  ),
           ),
         ],
       ),
@@ -211,171 +218,214 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
   void _showAddEditDialog([ResourceModel? resource]) {
     final isEditing = resource != null;
     final nameController = TextEditingController(text: resource?.name ?? '');
-    final descriptionController =
-        TextEditingController(text: resource?.description ?? '');
+    final descriptionController = TextEditingController(
+      text: resource?.description ?? '',
+    );
     final tagsController = TextEditingController(
       text: resource?.tags.join(', ') ?? '',
     );
     final imageUrlsController = TextEditingController(
       text: resource?.imageUrls.join('\n') ?? '',
     );
-    final whenToUseController =
-        TextEditingController(text: resource?.whenToUse ?? '');
-    final safetyTipsController =
-        TextEditingController(text: resource?.safetyTips ?? '');
-    final proTipController = TextEditingController(text: resource?.proTip ?? '');
+    final whenToUseController = TextEditingController(
+      text: resource?.whenToUse ?? '',
+    );
+    final safetyTipsController = TextEditingController(
+      text: resource?.safetyTips ?? '',
+    );
+    final proTipController = TextEditingController(
+      text: resource?.proTip ?? '',
+    );
     final categoriesController = TextEditingController(
       text: resource?.categories.join(', ') ?? '',
     );
 
+    bool isFeaturedLocal = resource?.isFeatured ?? false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Edit Resource' : 'Add New Resource'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Resource Name*',
-                  border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(isEditing ? 'Edit Resource' : 'Add New Resource'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Resource Name*',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descriptionController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Description*',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descriptionController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Description*',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: categoriesController,
-                decoration: const InputDecoration(
-                  labelText: 'Categories (comma-separated)',
-                  border: OutlineInputBorder(),
-                  hintText: 'e.g., First Aid, CPR, Injuries',
+                const SizedBox(height: 12),
+                TextField(
+                  controller: categoriesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Categories (comma-separated)',
+                    border: OutlineInputBorder(),
+                    hintText: 'e.g., First Aid, CPR, Injuries',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: tagsController,
-                decoration: const InputDecoration(
-                  labelText: 'Tags (comma-separated)',
-                  border: OutlineInputBorder(),
-                  hintText: 'e.g., emergency, safety, health',
+                const SizedBox(height: 12),
+                TextField(
+                  controller: tagsController,
+                  decoration: const InputDecoration(
+                    labelText: 'Tags (comma-separated)',
+                    border: OutlineInputBorder(),
+                    hintText: 'e.g., emergency, safety, health',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: imageUrlsController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Image URLs (one per line)',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: imageUrlsController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Image URLs (one per line)',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: whenToUseController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'When to Use',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: whenToUseController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'When to Use',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: safetyTipsController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Safety Tips',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: safetyTipsController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Safety Tips',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: proTipController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Pro Tip',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: proTipController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Pro Tip',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                // Featured Toggle
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[50],
+                    border: Border.all(color: Colors.amber[200]!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.star, color: Colors.amber[700]),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Featured Resource',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                      Switch(
+                        value: isFeaturedLocal,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            isFeaturedLocal = value;
+                          });
+                        },
+                        activeColor: Colors.amber[700],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.isEmpty ||
-                  descriptionController.text.isEmpty) {
-                _showErrorSnackbar('Name and description are required');
-                return;
-              }
-
-              try {
-                final newResource = ResourceModel(
-                  id: resource?.id ?? '',
-                  name: nameController.text,
-                  description: descriptionController.text,
-                  categories: categoriesController.text
-                      .split(',')
-                      .map((c) => c.trim())
-                      .where((c) => c.isNotEmpty)
-                      .toList(),
-                  tags: tagsController.text
-                      .split(',')
-                      .map((t) => t.trim())
-                      .where((t) => t.isNotEmpty)
-                      .toList(),
-                  imageUrls: imageUrlsController.text
-                      .split('\n')
-                      .map((u) => u.trim())
-                      .where((u) => u.isNotEmpty)
-                      .toList(),
-                  whenToUse: whenToUseController.text.isEmpty
-                      ? null
-                      : whenToUseController.text,
-                  safetyTips: safetyTipsController.text.isEmpty
-                      ? null
-                      : safetyTipsController.text,
-                  proTip: proTipController.text.isEmpty
-                      ? null
-                      : proTipController.text,
-                  isFeatured: resource?.isFeatured ?? false,
-                  createdAt: resource?.createdAt ?? DateTime.now(),
-                  updatedAt: DateTime.now(),
-                );
-
-                if (isEditing) {
-                  await adminService.updateResource(
-                    resource.id,
-                    newResource.toJson(),
-                  );
-                  _showErrorSnackbar('Resource updated successfully');
-                } else {
-                  await adminService.createResource(newResource);
-                  _showErrorSnackbar('Resource created successfully');
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isEmpty ||
+                    descriptionController.text.isEmpty) {
+                  _showErrorSnackbar('Name and description are required');
+                  return;
                 }
 
-                _loadResources();
-                Navigator.pop(context);
-              } catch (e) {
-                _showErrorSnackbar('Error saving resource: $e');
-              }
-            },
-            child: Text(isEditing ? 'Update' : 'Create'),
-          ),
-        ],
+                try {
+                  final newResource = ResourceModel(
+                    id: resource?.id ?? '',
+                    name: nameController.text,
+                    description: descriptionController.text,
+                    categories: categoriesController.text
+                        .split(',')
+                        .map((c) => c.trim())
+                        .where((c) => c.isNotEmpty)
+                        .toList(),
+                    tags: tagsController.text
+                        .split(',')
+                        .map((t) => t.trim())
+                        .where((t) => t.isNotEmpty)
+                        .toList(),
+                    imageUrls: imageUrlsController.text
+                        .split('\n')
+                        .map((u) => u.trim())
+                        .where((u) => u.isNotEmpty)
+                        .toList(),
+                    whenToUse: whenToUseController.text.isEmpty
+                        ? null
+                        : whenToUseController.text,
+                    safetyTips: safetyTipsController.text.isEmpty
+                        ? null
+                        : safetyTipsController.text,
+                    proTip: proTipController.text.isEmpty
+                        ? null
+                        : proTipController.text,
+                    isFeatured: isFeaturedLocal,
+                    createdAt: resource?.createdAt ?? DateTime.now(),
+                    updatedAt: DateTime.now(),
+                  );
+
+                  if (isEditing) {
+                    await adminService.updateResource(
+                      resource.id,
+                      newResource.toJson(),
+                    );
+                    _showErrorSnackbar('Resource updated successfully');
+                  } else {
+                    await adminService.createResource(newResource);
+                    _showErrorSnackbar('Resource created successfully');
+                  }
+
+                  _loadResources();
+                  Navigator.pop(context);
+                } catch (e) {
+                  _showErrorSnackbar('Error saving resource: $e');
+                }
+              },
+              child: Text(isEditing ? 'Update' : 'Create'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -385,7 +435,9 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Resource'),
-        content: Text('Delete "${resource.name}"?\nThis action cannot be undone.'),
+        content: Text(
+          'Delete "${resource.name}"?\nThis action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -404,10 +456,7 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

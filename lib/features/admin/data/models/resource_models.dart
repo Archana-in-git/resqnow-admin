@@ -59,6 +59,7 @@ class CategoryModel {
       'videoUrl': videoUrl,
       'order': order ?? 999,
       'aliases': aliases,
+      'isVisible': true,
     };
   }
 }

@@ -784,7 +784,7 @@ class ContentStatusWidget extends StatelessWidget {
 
 /// Push Notification Control Widget
 class PushNotificationControlWidget extends StatefulWidget {
-  final Function(String, String, String, String?) onSendNotification;
+  final Function(String, String, String, dynamic) onSendNotification;
 
   const PushNotificationControlWidget({
     Key? key,
@@ -801,9 +801,6 @@ class _PushNotificationControlWidgetState
   final titleController = TextEditingController();
   final messageController = TextEditingController();
   String selectedRecipient = 'all_users';
-  String? selectedDistrict;
-
-  final districts = ['Thiruvananthapuram', 'Ernakulam', 'Kozhikode', 'Other'];
 
   @override
   Widget build(BuildContext context) {
@@ -875,46 +872,11 @@ class _PushNotificationControlWidgetState
             ),
             items: const [
               DropdownMenuItem(value: 'all_users', child: Text('All Users')),
-              DropdownMenuItem(
-                value: 'donors_only',
-                child: Text('Donors Only'),
-              ),
-              DropdownMenuItem(
-                value: 'specific_district',
-                child: Text('Specific District'),
-              ),
             ],
             onChanged: (value) {
               setState(() => selectedRecipient = value ?? 'all_users');
             },
           ),
-          if (selectedRecipient == 'specific_district') ...[
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: selectedDistrict,
-              decoration: InputDecoration(
-                labelText: 'Select District',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-              ),
-              items: districts
-                  .map(
-                    (district) => DropdownMenuItem(
-                      value: district,
-                      child: Text(district),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                setState(() => selectedDistrict = value);
-              },
-            ),
-          ],
           const SizedBox(height: 16),
           Row(
             children: [
@@ -934,7 +896,7 @@ class _PushNotificationControlWidgetState
                       titleController.text,
                       messageController.text,
                       selectedRecipient,
-                      selectedDistrict,
+                      null,
                     );
                     titleController.clear();
                     messageController.clear();

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:resqnow_admin/features/admin/data/models/admin_user_model.dart';
 import 'package:resqnow_admin/features/admin/data/models/blood_donor_model.dart';
 import 'package:resqnow_admin/features/admin/data/models/resource_models.dart';
@@ -373,9 +374,29 @@ class AdminService {
     }
   }
 
-  /// Create category
+  /// Create category with auto-shifting of order values
+  /// When creating a category with order=X, all categories with order≥X are incremented by 1
   Future<String> createCategory(CategoryModel category) async {
     try {
+      final orderValue = category.order ?? 999;
+
+      // Shift existing categories if order conflicts
+      if (orderValue < 999) {
+        final conflictingDocs = await firestore
+            .collection(categoriesCollection)
+            .where('order', isGreaterThanOrEqualTo: orderValue)
+            .get();
+
+        // Increment order for all conflicting categories
+        for (var doc in conflictingDocs.docs) {
+          final currentOrder = doc.get('order') as int? ?? 999;
+          await firestore.collection(categoriesCollection).doc(doc.id).update({
+            'order': currentOrder + 1,
+          });
+        }
+      }
+
+      // Now create the new category
       final docRef = await firestore
           .collection(categoriesCollection)
           .add(category.toJson());
@@ -385,12 +406,65 @@ class AdminService {
     }
   }
 
-  /// Update category
+  /// Update category with auto-shifting of order values
+  /// When updating category order to X, all other categories with conflicting order are shifted
   Future<void> updateCategory(
     String categoryId,
     Map<String, dynamic> data,
   ) async {
     try {
+      // If order is being updated, handle shifting
+      if (data.containsKey('order')) {
+        final newOrder = data['order'] as int? ?? 999;
+
+        // Get the current category to find its old order
+        final currentDoc = await firestore
+            .collection(categoriesCollection)
+            .doc(categoryId)
+            .get();
+        final oldOrder = currentDoc.get('order') as int? ?? 999;
+
+        // Only shift if order is actually changing
+        if (newOrder != oldOrder && newOrder < 999) {
+          if (newOrder < oldOrder) {
+            // Moving to a lower order number: shift up categories between newOrder and oldOrder
+            final conflictingDocs = await firestore
+                .collection(categoriesCollection)
+                .where('order', isGreaterThanOrEqualTo: newOrder)
+                .where('order', isLessThan: oldOrder)
+                .get();
+
+            for (var doc in conflictingDocs.docs) {
+              if (doc.id != categoryId) {
+                final currentOrder = doc.get('order') as int? ?? 999;
+                await firestore
+                    .collection(categoriesCollection)
+                    .doc(doc.id)
+                    .update({'order': currentOrder + 1});
+              }
+            }
+          } else {
+            // Moving to a higher order number: shift down categories between oldOrder and newOrder
+            final conflictingDocs = await firestore
+                .collection(categoriesCollection)
+                .where('order', isGreaterThan: oldOrder)
+                .where('order', isLessThanOrEqualTo: newOrder)
+                .get();
+
+            for (var doc in conflictingDocs.docs) {
+              if (doc.id != categoryId) {
+                final currentOrder = doc.get('order') as int? ?? 999;
+                await firestore
+                    .collection(categoriesCollection)
+                    .doc(doc.id)
+                    .update({'order': currentOrder - 1});
+              }
+            }
+          }
+        }
+      }
+
+      // Update the category with provided data
       await firestore
           .collection(categoriesCollection)
           .doc(categoryId)
@@ -406,6 +480,70 @@ class AdminService {
       await firestore.collection(categoriesCollection).doc(categoryId).delete();
     } catch (e) {
       throw Exception('Failed to delete category: $e');
+    }
+  }
+
+  /// Migrate all categories to use filename-only icon assets
+  /// Extracts filename from full paths and updates all categories
+  Future<int> migrateCategoriesToFilenamesOnly() async {
+    try {
+      final snapshot = await firestore.collection(categoriesCollection).get();
+      int updated = 0;
+
+      for (var doc in snapshot.docs) {
+        final iconAsset = doc.get('iconAsset') as String?;
+
+        if (iconAsset != null && iconAsset.isNotEmpty) {
+          // Extract filename from any path format
+          var normalizedPath = iconAsset.replaceAll('\\', '/');
+          var filename = normalizedPath.split('/').last;
+
+          // Only update if it's different (i.e., had a path)
+          if (filename != iconAsset) {
+            await firestore.collection(categoriesCollection).doc(doc.id).update(
+              {'iconAsset': filename},
+            );
+            updated++;
+          }
+        }
+      }
+
+      return updated;
+    } catch (e) {
+      throw Exception('Failed to migrate categories: $e');
+    }
+  }
+
+  /// Fix duplicate order values by renumbering all categories sequentially
+  /// Categories are renumbered 1, 2, 3, ... based on their current order and name
+  Future<int> fixDuplicateOrders() async {
+    try {
+      final snapshot = await firestore.collection(categoriesCollection).get();
+
+      // Sort by current order, then by name (as tiebreaker for duplicates)
+      final docs = snapshot.docs.toList();
+      docs.sort((a, b) {
+        final orderA = a.get('order') as int? ?? 999;
+        final orderB = b.get('order') as int? ?? 999;
+        if (orderA != orderB) return orderA.compareTo(orderB);
+
+        final nameA = a.get('name') as String? ?? '';
+        final nameB = b.get('name') as String? ?? '';
+        return nameA.compareTo(nameB);
+      });
+
+      // Renumber sequentially
+      int newOrder = 1;
+      for (var doc in docs) {
+        await firestore.collection(categoriesCollection).doc(doc.id).update({
+          'order': newOrder,
+        });
+        newOrder++;
+      }
+
+      return docs.length;
+    } catch (e) {
+      throw Exception('Failed to fix duplicate orders: $e');
     }
   }
 
@@ -776,20 +914,6 @@ class AdminService {
         print('Error fetching search logs: $e');
       }
 
-      // Active Sessions (users with active login sessions)
-      int activeSessions = 0;
-      try {
-        final activeSessionsSnap = await firestore
-            .collection('user_sessions')
-            .where('isActive', isEqualTo: true)
-            .count()
-            .get();
-        activeSessions = activeSessionsSnap.count ?? 0;
-      } catch (e) {
-        print('Error fetching active sessions: $e');
-        activeSessions = 0;
-      }
-
       return AnalyticsStats(
         totalUsers: totalUsers,
         activeUsersCount: activeUsersCount,
@@ -799,7 +923,6 @@ class AdminService {
         activeDonors: activeDonors,
         emergencyClicksToday: emergencyClicksToday,
         mostSearchedCondition: mostSearchedCondition,
-        activeSessions: activeSessions,
         userGrowthPercent: totalUsers > 0
             ? (newUsersLastWeek / totalUsers * 100)
             : 0,
@@ -1428,5 +1551,194 @@ class AdminService {
     } catch (e) {
       throw Exception('Failed to fetch call request stats: $e');
     }
+  }
+
+  /// ============ Real-Time Analytics Streams ============
+
+  /// Get real-time analytics stats stream with debouncing
+  /// Debounces for 2 seconds to batch rapid changes and reduce query load
+  Stream<AnalyticsStats> getAnalyticsStatsStream() {
+    return firestore
+        .collection(usersCollection)
+        .snapshots()
+        .debounceTime(const Duration(seconds: 2))
+        .asyncMap((_) async {
+          // Calculate stats only after changes settle (debounced)
+          try {
+            final totalUsersSnap = await firestore
+                .collection(usersCollection)
+                .count()
+                .get();
+            final totalUsers = totalUsersSnap.count ?? 0;
+
+            final activeUsersSnap = await firestore
+                .collection(usersCollection)
+                .where('accountStatus', isEqualTo: 'active')
+                .where('isBlocked', isEqualTo: false)
+                .count()
+                .get();
+            final activeUsersCount = activeUsersSnap.count ?? 0;
+
+            final suspendedSnap = await firestore
+                .collection(usersCollection)
+                .where('accountStatus', isEqualTo: 'suspended')
+                .count()
+                .get();
+            final suspendedUsersCount = suspendedSnap.count ?? 0;
+
+            final sevenDaysAgo = Timestamp.fromDate(
+              DateTime.now().subtract(Duration(days: 7)),
+            );
+            final newUsersSnap = await firestore
+                .collection(usersCollection)
+                .where('createdAt', isGreaterThanOrEqualTo: sevenDaysAgo)
+                .get();
+            final newUsersLastWeek = newUsersSnap.docs.length;
+
+            final activeNewUsersLastWeek = newUsersSnap.docs.where((doc) {
+              try {
+                final data = doc.data() as Map<String, dynamic>;
+                return (data['accountStatus'] as String?) == 'active' &&
+                    (data['isBlocked'] as bool?) == false;
+              } catch (e) {
+                return false;
+              }
+            }).length;
+
+            final activeDonorsSnap = await firestore
+                .collection(donorsCollection)
+                .where('isAvailable', isEqualTo: true)
+                .count()
+                .get();
+            final activeDonors = activeDonorsSnap.count ?? 0;
+
+            final today = DateTime.now();
+            final startOfDay = Timestamp.fromDate(
+              DateTime(today.year, today.month, today.day),
+            );
+            final endOfDay = Timestamp.fromDate(
+              DateTime(today.year, today.month, today.day + 1),
+            );
+
+            final emergencyClicksSnap = await firestore
+                .collection('emergency_logs')
+                .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
+                .where('timestamp', isLessThan: endOfDay)
+                .count()
+                .get();
+            final emergencyClicksToday = emergencyClicksSnap.count ?? 0;
+
+            String mostSearchedCondition = 'N/A';
+            final sevenDaysAgoForSearch = DateTime.now()
+                .subtract(Duration(days: 7))
+                .toIso8601String();
+            try {
+              final searchLogsSnap = await firestore
+                  .collection('search_logs')
+                  .where(
+                    'timestamp',
+                    isGreaterThanOrEqualTo: sevenDaysAgoForSearch,
+                  )
+                  .get();
+
+              if (searchLogsSnap.docs.isNotEmpty) {
+                final queryCount = <String, int>{};
+                for (var doc in searchLogsSnap.docs) {
+                  final query = doc.get('query') as String?;
+                  if (query != null && query.isNotEmpty) {
+                    queryCount[query] = (queryCount[query] ?? 0) + 1;
+                  }
+                }
+
+                if (queryCount.isNotEmpty) {
+                  final mostSearched = queryCount.entries.reduce(
+                    (a, b) => a.value > b.value ? a : b,
+                  );
+                  mostSearchedCondition = mostSearched.key;
+                }
+              }
+            } catch (e) {
+              print('Error fetching search logs: $e');
+            }
+
+            return AnalyticsStats(
+              totalUsers: totalUsers,
+              activeUsersCount: activeUsersCount,
+              suspendedUsersCount: suspendedUsersCount,
+              newUsersLastWeek: newUsersLastWeek,
+              activeNewUsersLastWeek: activeNewUsersLastWeek,
+              activeDonors: activeDonors,
+              emergencyClicksToday: emergencyClicksToday,
+              mostSearchedCondition: mostSearchedCondition,
+              userGrowthPercent: totalUsers > 0
+                  ? (newUsersLastWeek / totalUsers * 100)
+                  : 0,
+              donorGrowthPercent: activeDonors > 0 ? 5.2 : 0,
+              emergencyTrendsPercent: emergencyClicksToday > 0 ? 3.8 : 0,
+              activeUsersPercent: totalUsers > 0
+                  ? (activeUsersCount / totalUsers * 100)
+                  : 0,
+            );
+          } catch (e) {
+            print('Error in analytics stream: $e');
+            return AnalyticsStats.empty();
+          }
+        });
+  }
+
+  /// Get real-time emergency clicks stream
+  Stream<int> getEmergencyClicksStream() {
+    final today = DateTime.now();
+    final startOfDay = Timestamp.fromDate(
+      DateTime(today.year, today.month, today.day),
+    );
+
+    return firestore
+        .collection('emergency_logs')
+        .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
+  /// Get real-time call request stats stream with debouncing
+  /// Debounces for 1 second to reduce excessive query counts
+  Stream<Map<String, int>> getCallRequestStatsStream() {
+    return firestore
+        .collection(callRequestsCollection)
+        .snapshots()
+        .debounceTime(const Duration(seconds: 1))
+        .asyncMap((_) async {
+          try {
+            final totalSnapshot = await firestore
+                .collection(callRequestsCollection)
+                .count()
+                .get();
+            final pendingSnapshot = await firestore
+                .collection(callRequestsCollection)
+                .where('status', isEqualTo: 'pending')
+                .count()
+                .get();
+            final approvedSnapshot = await firestore
+                .collection(callRequestsCollection)
+                .where('status', isEqualTo: 'approved')
+                .count()
+                .get();
+            final rejectedSnapshot = await firestore
+                .collection(callRequestsCollection)
+                .where('status', isEqualTo: 'rejected')
+                .count()
+                .get();
+
+            return {
+              'total': totalSnapshot.count ?? 0,
+              'pending': pendingSnapshot.count ?? 0,
+              'approved': approvedSnapshot.count ?? 0,
+              'rejected': rejectedSnapshot.count ?? 0,
+            };
+          } catch (e) {
+            print('Error in call request stats stream: $e');
+            return {'total': 0, 'pending': 0, 'approved': 0, 'rejected': 0};
+          }
+        });
   }
 }

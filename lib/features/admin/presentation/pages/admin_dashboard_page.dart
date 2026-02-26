@@ -8,7 +8,6 @@ import 'package:resqnow_admin/features/admin/presentation/pages/category_managem
 import 'package:resqnow_admin/features/admin/presentation/pages/emergency_numbers_management/emergency_numbers_management_page.dart';
 import 'package:resqnow_admin/features/admin/presentation/pages/resources_management/resources_management_page.dart';
 import 'package:resqnow_admin/features/admin/presentation/pages/conditions_management/conditions_management_page.dart';
-import 'package:resqnow_admin/features/admin/presentation/pages/home_config_management/home_config_management_page.dart';
 import 'package:resqnow_admin/core/services/admin_service.dart';
 import 'package:resqnow_admin/features/admin/presentation/widgets/analytics_widgets.dart';
 import 'package:resqnow_admin/features/admin/data/models/analytics_model.dart'
@@ -41,13 +40,10 @@ class AdminDashboardColors {
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
   int _selectedMenuIndex = 0;
   late AdminService _adminService;
-  late Future<models.AnalyticsStats> _analyticsStatsFuture;
+  late Stream<models.AnalyticsStats> _analyticsStatsStream;
   late Future<models.UserGrowthData> _userGrowthFuture;
   late Future<models.EmergencyTrendData> _emergencyTrendFuture;
-  late Future<List<models.TopConditionData>> _topConditionsFuture;
-  late Future<models.ContentStatusMetrics> _contentStatusFuture;
-  late Future<models.RealTimeActivityPanel> _realTimeActivityFuture;
-  late Future<Map<String, int>> _callRequestStatsFuture;
+  late Stream<Map<String, int>> _callRequestStatsStream;
 
   final List<AdminMenuItem> _menuItems = [
     AdminMenuItem(
@@ -106,13 +102,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       color: AdminDashboardColors.success,
       lightColor: const Color(0xFFC8E6C9),
     ),
-    AdminMenuItem(
-      icon: Icons.home,
-      label: 'Home Configuration',
-      description: 'Configure home page layout',
-      color: AdminDashboardColors.primaryGradientEnd,
-      lightColor: const Color(0xFFB2DFDB),
-    ),
   ];
 
   @override
@@ -122,26 +111,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       firestore: FirebaseFirestore.instance,
       auth: FirebaseAuth.instance,
     );
-    _initializeFutures();
+    _initializeStreams();
   }
 
-  void _initializeFutures() {
-    _analyticsStatsFuture = _adminService.getAnalyticsStats();
+  void _initializeStreams() {
+    _analyticsStatsStream = _adminService.getAnalyticsStatsStream();
     _userGrowthFuture = _adminService.getUserGrowthData();
     _emergencyTrendFuture = _adminService.getEmergencyTrendData();
-    _topConditionsFuture = _adminService.getTopConditions();
-    _contentStatusFuture = _adminService.getContentStatusMetrics();
-    _realTimeActivityFuture = _adminService.getRealTimeActivityData();
-    _callRequestStatsFuture = _adminService.getCallRequestStats();
+    _callRequestStatsStream = _adminService.getCallRequestStatsStream();
   }
 
   void _refreshAllData() {
-    setState(() {
-      _initializeFutures();
-    });
+    // Streams auto-update when data changes
+    // No manual refresh needed, but we can trigger one if desired
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Dashboard refreshed'),
+        content: Text('Analytics updating in real-time'),
         duration: Duration(seconds: 2),
       ),
     );
@@ -160,9 +145,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF9DD9D2).withOpacity(0.5),
-              const Color(0xFFAFD3E8).withOpacity(0.4),
-              const Color(0xFFC9B8E0).withOpacity(0.4),
+              const Color(0xFF9DD9D2).withValues(alpha: 0.5),
+              const Color(0xFFAFD3E8).withValues(alpha: 0.4),
+              const Color(0xFFC9B8E0).withValues(alpha: 0.4),
             ],
           ),
         ),
@@ -206,13 +191,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 const SizedBox(width: 20),
                                 Expanded(
                                   flex: 1,
-                                  child: Column(
-                                    children: [
-                                      _buildRealTimeActivitySection(),
-                                      const SizedBox(height: 20),
-                                      _buildBloodDonorAnalyticsSection(),
-                                    ],
-                                  ),
+                                  child: _buildBloodDonorAnalyticsSection(),
                                 ),
                               ],
                             )
@@ -220,8 +199,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             Column(
                               children: [
                                 _buildChartsColumn(),
-                                const SizedBox(height: 20),
-                                _buildRealTimeActivitySection(),
                                 const SizedBox(height: 20),
                                 _buildBloodDonorAnalyticsSection(),
                               ],
@@ -232,10 +209,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           // Push Notification Control
                           _buildNotificationControlSection(),
                           const SizedBox(height: 28),
-
-                          // Management Shortcuts
-                          _buildManagementShortcuts(),
-                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
@@ -250,242 +223,121 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildStatisticsSection() {
-    return FutureBuilder<models.AnalyticsStats>(
-      future: _analyticsStatsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    return RepaintBoundary(
+      child: StreamBuilder<models.AnalyticsStats>(
+        stream: _analyticsStatsStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
 
-        final stats = snapshot.data ?? models.AnalyticsStats.empty();
+          final stats = snapshot.data ?? models.AnalyticsStats.empty();
 
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              StatCard(
-                icon: Icons.people,
-                title: 'Total Users',
-                value: stats.totalUsers.toString(),
-                description: 'All registered users',
-                growthPercent: stats.userGrowthPercent,
-                backgroundColor: const Color(0xFFE1F5FE),
-                iconColor: const Color(0xFF0288D1),
-              ),
-              const SizedBox(width: 16),
-              StatCard(
-                icon: Icons.block,
-                title: 'Suspended',
-                value: stats.suspendedUsersCount.toString(),
-                description: 'Blocked accounts',
-                growthPercent: 0.0,
-                backgroundColor: const Color(0xFFFFCDD2),
-                iconColor: AdminDashboardColors.emergency,
-              ),
-              const SizedBox(width: 16),
-              StatCard(
-                icon: Icons.person_add,
-                title: 'New This Week',
-                value: stats.activeNewUsersLastWeek.toString(),
-                description: 'Active new users',
-                growthPercent: 2.5,
-                backgroundColor: const Color(0xFFF3E5F5),
-                iconColor: const Color(0xFF6A1B9A),
-              ),
-              const SizedBox(width: 16),
-              StatCard(
-                icon: Icons.emergency_share,
-                title: 'Emergency Clicks',
-                value: stats.emergencyClicksToday.toString(),
-                description: 'Today',
-                growthPercent: stats.emergencyTrendsPercent,
-                backgroundColor: const Color(0xFFFFCDD2),
-                iconColor: AdminDashboardColors.emergency,
-              ),
-              const SizedBox(width: 16),
-              StatCard(
-                icon: Icons.trending_up,
-                title: 'Active Sessions',
-                value: stats.activeSessions.toString(),
-                description: 'Currently logged in',
-                growthPercent: 0.0,
-                backgroundColor: const Color(0xFFF3E5F5),
-                iconColor: const Color(0xFF6A1B9A),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCallRequestStatsCards() {
-    return FutureBuilder<Map<String, int>>(
-      future: _callRequestStatsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return StatCard(
-            icon: Icons.phone_in_talk,
-            title: 'Loading...',
-            value: '...',
-            description: 'Call requests',
-            growthPercent: 0,
-            backgroundColor: const Color(0xFFBBDEFB),
-            iconColor: const Color(0xFF1565C0),
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                StatCard(
+                  icon: Icons.people,
+                  title: 'Total Users',
+                  value: stats.totalUsers.toString(),
+                  description: 'All registered users',
+                  growthPercent: stats.userGrowthPercent,
+                  backgroundColor: const Color(0xFFE1F5FE),
+                  iconColor: const Color(0xFF0288D1),
+                ),
+                const SizedBox(width: 16),
+                StatCard(
+                  icon: Icons.block,
+                  title: 'Suspended',
+                  value: stats.suspendedUsersCount.toString(),
+                  description: 'Blocked accounts',
+                  growthPercent: 0.0,
+                  backgroundColor: const Color(0xFFFFCDD2),
+                  iconColor: AdminDashboardColors.emergency,
+                ),
+                const SizedBox(width: 16),
+                StatCard(
+                  icon: Icons.person_add,
+                  title: 'New This Week',
+                  value: stats.activeNewUsersLastWeek.toString(),
+                  description: 'Active new users',
+                  growthPercent: 2.5,
+                  backgroundColor: const Color(0xFFF3E5F5),
+                  iconColor: const Color(0xFF6A1B9A),
+                ),
+                const SizedBox(width: 16),
+                StatCard(
+                  icon: Icons.emergency_share,
+                  title: 'Emergency Clicks',
+                  value: stats.emergencyClicksToday.toString(),
+                  description: 'Today',
+                  growthPercent: stats.emergencyTrendsPercent,
+                  backgroundColor: const Color(0xFFFFCDD2),
+                  iconColor: AdminDashboardColors.emergency,
+                ),
+              ],
+            ),
           );
-        }
-
-        if (snapshot.hasError) {
-          return const SizedBox.shrink();
-        }
-
-        final stats = snapshot.data ?? {};
-        final pending = stats['pending'] ?? 0;
-        final approved = stats['approved'] ?? 0;
-
-        return Row(
-          children: [
-            StatCard(
-              icon: Icons.hourglass_empty,
-              title: 'Pending Calls',
-              value: pending.toString(),
-              description: 'Awaiting approval',
-              growthPercent: 0,
-              backgroundColor: const Color(0xFFFFE0B2),
-              iconColor: Colors.orange,
-            ),
-            const SizedBox(width: 16),
-            StatCard(
-              icon: Icons.check_circle,
-              title: 'Approved Calls',
-              value: approved.toString(),
-              description: 'Ready to connect',
-              growthPercent: 0,
-              backgroundColor: const Color(0xFFC8E6C9),
-              iconColor: AdminDashboardColors.success,
-            ),
-          ],
-        );
-      },
+        },
+      ),
     );
   }
 
   Widget _buildChartsColumn() {
-    return Column(
-      children: [
-        // User Growth Chart
-        FutureBuilder<models.UserGrowthData>(
-          future: _userGrowthFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(child: CircularProgressIndicator()),
-              );
-            }
-            final data =
-                snapshot.data ??
-                models.UserGrowthData(months: [], userCounts: []);
-            return UserGrowthChart(data: data);
-          },
-        ),
-        const SizedBox(height: 20),
+    return RepaintBoundary(
+      child: Column(
+        children: [
+          // User Growth Chart
+          FutureBuilder<models.UserGrowthData>(
+            future: _userGrowthFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(child: CircularProgressIndicator()),
+                );
+              }
+              final data =
+                  snapshot.data ??
+                  models.UserGrowthData(months: [], userCounts: []);
+              return UserGrowthChart(data: data);
+            },
+          ),
+          const SizedBox(height: 20),
 
-        // Emergency Trend Chart
-        FutureBuilder<models.EmergencyTrendData>(
-          future: _emergencyTrendFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(child: CircularProgressIndicator()),
-              );
-            }
-            final data =
-                snapshot.data ??
-                models.EmergencyTrendData(labels: [], counts: []);
-            return EmergencyTrendChart(data: data);
-          },
-        ),
-        const SizedBox(height: 20),
-
-        // Top Conditions Chart
-        FutureBuilder<List<models.TopConditionData>>(
-          future: _topConditionsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(child: CircularProgressIndicator()),
-              );
-            }
-            final data = snapshot.data ?? [];
-            return TopConditionsWidget(conditions: data);
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRealTimeActivitySection() {
-    return FutureBuilder<models.RealTimeActivityPanel>(
-      future: _realTimeActivityFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Center(child: CircularProgressIndicator()),
-          );
-        }
-        final data = snapshot.data;
-        if (data == null) {
-          return Container();
-        }
-        return RealTimeActivityPanelWidget(data: data);
-      },
-    );
-  }
-
-  Widget _buildContentStatusSection() {
-    return FutureBuilder<models.ContentStatusMetrics>(
-      future: _contentStatusFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Center(child: CircularProgressIndicator()),
-          );
-        }
-        final data = snapshot.data;
-        if (data == null) {
-          return Container();
-        }
-        return ContentStatusWidget(metrics: data);
-      },
+          // Emergency Trend Chart
+          FutureBuilder<models.EmergencyTrendData>(
+            future: _emergencyTrendFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(child: CircularProgressIndicator()),
+                );
+              }
+              final data =
+                  snapshot.data ??
+                  models.EmergencyTrendData(labels: [], counts: []);
+              return EmergencyTrendChart(data: data);
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 
@@ -494,68 +346,74 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildBloodDonorCardsGrid() {
-    return FutureBuilder<models.AnalyticsStats>(
-      future: _analyticsStatsFuture,
-      builder: (context, snapshot1) {
-        if (snapshot1.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    return RepaintBoundary(
+      child: StreamBuilder<models.AnalyticsStats>(
+        stream: _analyticsStatsStream,
+        builder: (context, snapshot1) {
+          if (snapshot1.connectionState == ConnectionState.waiting &&
+              !snapshot1.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        final stats = snapshot1.data ?? models.AnalyticsStats.empty();
+          final stats = snapshot1.data ?? models.AnalyticsStats.empty();
 
-        return FutureBuilder<Map<String, int>>(
-          future: _callRequestStatsFuture,
-          builder: (context, snapshot2) {
-            if (snapshot2.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+          return RepaintBoundary(
+            child: StreamBuilder<Map<String, int>>(
+              stream: _callRequestStatsStream,
+              builder: (context, snapshot2) {
+                if (snapshot2.connectionState == ConnectionState.waiting &&
+                    !snapshot2.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            final callStats = snapshot2.data ?? {};
-            final pending = callStats['pending'] ?? 0;
-            final approved = callStats['approved'] ?? 0;
+                final callStats = snapshot2.data ?? {};
+                final pending = callStats['pending'] ?? 0;
+                final approved = callStats['approved'] ?? 0;
 
-            return GridView.count(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildBloodDonorCard(
-                  icon: Icons.bloodtype,
-                  title: 'Active Donors',
-                  value: stats.activeDonors.toString(),
-                  color: AdminDashboardColors.accentColor,
-                  bgColor: Colors.white,
-                ),
-                _buildBloodDonorCard(
-                  icon: Icons.search,
-                  title: 'Top Searched',
-                  value: stats.mostSearchedCondition.length > 12
-                      ? '${stats.mostSearchedCondition.substring(0, 12)}...'
-                      : stats.mostSearchedCondition,
-                  color: AdminDashboardColors.warning,
-                  bgColor: Colors.white,
-                ),
-                _buildBloodDonorCard(
-                  icon: Icons.hourglass_empty,
-                  title: 'Pending Calls',
-                  value: pending.toString(),
-                  color: Colors.orange,
-                  bgColor: Colors.white,
-                ),
-                _buildBloodDonorCard(
-                  icon: Icons.check_circle,
-                  title: 'Approved Calls',
-                  value: approved.toString(),
-                  color: AdminDashboardColors.success,
-                  bgColor: Colors.white,
-                ),
-              ],
-            );
-          },
-        );
-      },
+                return GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildBloodDonorCard(
+                      icon: Icons.bloodtype,
+                      title: 'Active Donors',
+                      value: stats.activeDonors.toString(),
+                      color: AdminDashboardColors.accentColor,
+                      bgColor: Colors.white,
+                    ),
+                    _buildBloodDonorCard(
+                      icon: Icons.search,
+                      title: 'Top Searched',
+                      value: stats.mostSearchedCondition.length > 12
+                          ? '${stats.mostSearchedCondition.substring(0, 12)}...'
+                          : stats.mostSearchedCondition,
+                      color: AdminDashboardColors.warning,
+                      bgColor: Colors.white,
+                    ),
+                    _buildBloodDonorCard(
+                      icon: Icons.hourglass_empty,
+                      title: 'Pending Calls',
+                      value: pending.toString(),
+                      color: Colors.orange,
+                      bgColor: Colors.white,
+                    ),
+                    _buildBloodDonorCard(
+                      icon: Icons.check_circle,
+                      title: 'Approved Calls',
+                      value: approved.toString(),
+                      color: AdminDashboardColors.success,
+                      bgColor: Colors.white,
+                    ),
+                  ],
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -573,7 +431,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -610,13 +468,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildNotificationControlSection() {
     return PushNotificationControlWidget(
-      onSendNotification: (title, message, recipientType, district) async {
+      onSendNotification: (title, message, recipientType, _) async {
         try {
           await _adminService.sendNotification(
             title: title,
             message: message,
             recipientType: recipientType,
-            targetDistrict: district,
           );
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -637,132 +494,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  Widget _buildManagementShortcuts() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            _menuItems[6].color.withOpacity(0.15),
-            _menuItems[7].color.withOpacity(0.15),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Quick Access',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AdminDashboardColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Management Tools',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AdminDashboardColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildQuickAccessButton(1),
-                    _buildQuickAccessButton(2),
-                    _buildQuickAccessButton(3),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.dashboard_customize,
-                size: 40,
-                color: AdminDashboardColors.primaryGradientStart.withOpacity(
-                  0.3,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickAccessButton(int menuIndex) {
-    final item = _menuItems[menuIndex];
-    return SizedBox(
-      height: 40,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _onMenuItemTap(menuIndex),
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(item.icon, size: 16, color: item.color),
-                const SizedBox(width: 6),
-                Text(
-                  item.label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AdminDashboardColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildSidebar(BuildContext context) {
     return Container(
       width: 200,
       decoration: BoxDecoration(
-        color: const Color(0xFFB2DFDB).withOpacity(0.5),
+        color: const Color(0xFFB2DFDB).withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(2, 0),
           ),
@@ -1032,9 +772,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         break;
       case 7:
         pageToNavigate = const ConditionsManagementPage();
-        break;
-      case 8:
-        pageToNavigate = const HomeConfigManagementPage();
         break;
       default:
         return;

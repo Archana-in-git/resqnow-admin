@@ -10,7 +10,6 @@ class AnalyticsStats {
   final int activeDonors;
   final int emergencyClicksToday;
   final String mostSearchedCondition;
-  final int activeSessions; // Users with active login sessions
 
   // Growth percentages
   final double userGrowthPercent;
@@ -27,7 +26,6 @@ class AnalyticsStats {
     required this.activeDonors,
     required this.emergencyClicksToday,
     required this.mostSearchedCondition,
-    required this.activeSessions,
     this.userGrowthPercent = 0.0,
     this.donorGrowthPercent = 0.0,
     this.emergencyTrendsPercent = 0.0,
@@ -43,7 +41,6 @@ class AnalyticsStats {
     activeDonors: 0,
     emergencyClicksToday: 0,
     mostSearchedCondition: 'N/A',
-    activeSessions: 0,
   );
 }
 

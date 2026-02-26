@@ -45,51 +45,119 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     }
   }
 
+  /// Check if the path is a network URL
+  bool _isNetworkUrl(String path) {
+    return path.startsWith('http://') || path.startsWith('https://');
+  }
+
   /// Transform database asset path to actual file location
-  /// Database: lib/assets/images/icons/broken_bone.png OR assets/icons/broken_bone.png OR assets/assets/images/icons/broken_bone.png
-  /// All transform to: assets/images/icons/broken_bone.png (single assets prefix for pubspec.yaml)
-  /// Handles spaces in filenames by replacing with underscores
+  /// Handles any path format with forward or backward slashes
+  /// Extracts filename and applies space-to-underscore conversion
   String _transformAssetPath(String databasePath) {
+    // If it's a URL, return as-is
+    if (_isNetworkUrl(databasePath)) return databasePath;
+    // Normalize path: replace backslashes with forward slashes
+    var normalizedPath = databasePath.replaceAll('\\', '/');
     // Extract just the filename from any path format
-    var filename = databasePath.split('/').last;
+    var filename = normalizedPath.split('/').last;
     // Replace spaces with underscores to avoid web URL encoding issues
     filename = filename.replaceAll(' ', '_');
-    // Return correct asset path - pubspec.yaml declares assets/ so use that root
+    // Return correct asset path
     return 'assets/images/icons/$filename';
   }
 
-  /// Build asset image with proper error handling
-  Widget _buildAssetImage(String databasePath) {
-    final actualPath = _transformAssetPath(databasePath);
+  /// Build asset image with proper error handling - supports both URLs and local assets
+  /// Priority: imageUrl (if available) > local asset
+  Widget _buildAssetImage(CategoryModel category) {
+    // Try image URL first if available
+    if (category.imageUrls.isNotEmpty) {
+      final imageUrl = category.imageUrls.first;
+      return ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(12),
+          topRight: Radius.circular(12),
+        ),
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.orange[50],
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.broken_image, size: 60, color: Colors.orange[400]),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      'URL Error: ${imageUrl.split('/').last}',
+                      style: TextStyle(fontSize: 9, color: Colors.orange[600]),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+    }
 
+    // Fall back to local asset
+    if (category.iconAsset != null && category.iconAsset!.isNotEmpty) {
+      final actualPath = _transformAssetPath(category.iconAsset!);
+      return ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(12),
+          topRight: Radius.circular(12),
+        ),
+        child: Image.asset(
+          actualPath,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.blue[50],
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.image, size: 60, color: Colors.blue[400]),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      'Asset: ${category.iconAsset!.split('/').last}',
+                      style: TextStyle(fontSize: 10, color: Colors.blue[600]),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    // No image provided
     return ClipRRect(
       borderRadius: const BorderRadius.only(
         topLeft: Radius.circular(12),
         topRight: Radius.circular(12),
       ),
-      child: Image.asset(
-        actualPath,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: Colors.blue[50],
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.image, size: 60, color: Colors.blue[400]),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    'Icon: ${databasePath.split('/').last}',
-                    style: TextStyle(fontSize: 10, color: Colors.blue[600]),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
+      child: Container(
+        color: Colors.grey[200],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.category, size: 60, color: Colors.grey[400]),
+            const SizedBox(height: 8),
+            Text(
+              'No image',
+              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -99,8 +167,14 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Category Management'),
-
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.update),
+            tooltip: 'Fix duplicate orders',
+            onPressed: _showFixOrdersDialog,
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddEditDialog(),
@@ -145,8 +219,11 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
               ),
               color: Colors.white,
             ),
-            child: category.iconAsset != null && category.iconAsset!.isNotEmpty
-                ? _buildAssetImage(category.iconAsset!)
+            child:
+                (category.imageUrls.isNotEmpty ||
+                    (category.iconAsset != null &&
+                        category.iconAsset!.isNotEmpty))
+                ? _buildAssetImage(category)
                 : Container(
                     color: Colors.grey[200],
                     child: Column(
@@ -155,7 +232,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                         Icon(Icons.category, size: 60, color: Colors.grey[400]),
                         const SizedBox(height: 8),
                         Text(
-                          'No icon asset',
+                          'No image',
                           style: TextStyle(
                             fontSize: 10,
                             color: Colors.grey[600],
@@ -248,24 +325,34 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     final isEdit = category != null;
     final nameController = TextEditingController(text: category?.name ?? '');
     final orderController = TextEditingController(
-      text: category?.order?.toString() ?? '0',
+      text: isEdit ? (category?.order?.toString() ?? '') : '',
     );
     final aliasesController = TextEditingController(
       text: category?.aliases.join(", ") ?? '',
     );
+
+    // Local icon asset field
     final iconAssetController = TextEditingController(
       text: category?.iconAsset ?? '',
     );
 
+    // Image URL field (use first URL if available)
+    final imageUrlController = TextEditingController(
+      text: category?.imageUrls.isNotEmpty ?? false
+          ? category!.imageUrls.first
+          : '',
+    );
+
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (innerContext, setDialogState) => AlertDialog(
           title: Text(isEdit ? 'Edit Category' : 'Add New Category'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Category Name
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
@@ -274,15 +361,24 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
+
+                // Display Order
                 TextField(
                   controller: orderController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Display Order',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: isEdit
+                        ? 'Display Order'
+                        : 'Display Order (optional)',
+                    border: const OutlineInputBorder(),
+                    hintText: isEdit
+                        ? category?.order.toString()
+                        : 'Auto-assigned if empty',
                   ),
                 ),
                 const SizedBox(height: 12),
+
+                // Aliases
                 TextField(
                   controller: aliasesController,
                   decoration: const InputDecoration(
@@ -292,13 +388,93 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                   ),
                   maxLines: 2,
                 ),
+                const SizedBox(height: 16),
+
+                // Divider for Image Section
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.grey[400])),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          'Image Options',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: Colors.grey[400])),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 12),
+
+                // Local Asset Field
                 TextField(
                   controller: iconAssetController,
                   decoration: const InputDecoration(
-                    labelText: 'Icon Asset Path *',
+                    labelText: 'Local Asset (File Name)',
                     border: OutlineInputBorder(),
-                    hintText: 'assets/icons/fractures.png',
+                    hintText: 'e.g., avatar.jpg, icon.png',
+                    helperText:
+                        'Files should be in assets/images/icons/ folder',
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // OR Divider
+                Center(
+                  child: Text(
+                    '— OR —',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Image URL Field
+                TextField(
+                  controller: imageUrlController,
+                  decoration: const InputDecoration(
+                    labelText: 'Image URL',
+                    border: OutlineInputBorder(),
+                    hintText: 'e.g., https://example.com/image.jpg',
+                    helperText:
+                        'Direct URL to image (takes priority over local asset)',
+                  ),
+                  keyboardType: TextInputType.url,
+                ),
+                const SizedBox(height: 8),
+
+                // Info box
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info, size: 18, color: Colors.blue[700]),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Provide at least one image source. URL takes priority.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.blue[700],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -306,7 +482,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
@@ -320,13 +496,16 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                   return;
                 }
 
-                // Check if admin provided an icon asset
-                if (iconAssetController.text.trim().isEmpty) {
+                // Check if at least one image source is provided
+                final hasIconAsset = iconAssetController.text.trim().isNotEmpty;
+                final hasImageUrl = imageUrlController.text.trim().isNotEmpty;
+
+                if (!hasIconAsset && !hasImageUrl) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
-                          'Please provide an icon asset path for the category',
+                          'Please provide either a local asset or an image URL',
                         ),
                         backgroundColor: Colors.orange,
                       ),
@@ -342,15 +521,42 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                       .where((e) => e.isNotEmpty)
                       .toList();
 
-                  final orderValue = int.tryParse(orderController.text) ?? 999;
+                  // Parse order - use next sequential number if not specified
+                  int orderValue;
+                  final orderText = orderController.text.trim();
+                  if (orderText.isEmpty) {
+                    // For new categories, auto-assign next order number
+                    if (!isEdit) {
+                      orderValue = _categories.isEmpty
+                          ? 1
+                          : (_categories
+                                    .map((c) => c.order ?? 0)
+                                    .reduce((a, b) => a > b ? a : b) +
+                                1);
+                    } else {
+                      orderValue =
+                          999; // Keep existing for edits if not specified
+                    }
+                  } else {
+                    orderValue = int.tryParse(orderText) ?? 999;
+                  }
+
                   final iconAsset = iconAssetController.text.trim();
+                  final imageUrlInput = imageUrlController.text.trim();
+
+                  // Build imageUrls list - include URL if provided
+                  final imageUrls = <String>[];
+                  if (imageUrlInput.isNotEmpty) {
+                    imageUrls.add(imageUrlInput);
+                  }
 
                   if (isEdit) {
                     await _adminService.updateCategory(category.id, {
                       'name': nameController.text.trim(),
                       'order': orderValue,
                       'aliases': aliases,
-                      'iconAsset': iconAsset,
+                      'iconAsset': iconAsset.isNotEmpty ? iconAsset : null,
+                      'imageUrls': imageUrls,
                     });
                   } else {
                     await _adminService.createCategory(
@@ -359,12 +565,13 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                         name: nameController.text.trim(),
                         order: orderValue,
                         aliases: aliases.isNotEmpty ? aliases : null,
-                        iconAsset: iconAsset,
+                        iconAsset: iconAsset.isNotEmpty ? iconAsset : null,
+                        imageUrls: imageUrls,
                       ),
                     );
                   }
-                  if (mounted) {
-                    Navigator.pop(context);
+                  if (mounted && dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
                     await _loadCategories();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -378,8 +585,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                     );
                   }
                 } catch (e) {
-                  if (mounted) {
-                    Navigator.pop(context);
+                  if (mounted && dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Error: $e'),
@@ -397,25 +604,74 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     );
   }
 
+  void _showFixOrdersDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Fix Duplicate Orders'),
+        content: const Text(
+          'Renumber all categories sequentially (1, 2, 3, ...)?\n\nThis will fix any duplicate order values.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final count = await _adminService.fixDuplicateOrders();
+                if (mounted && dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                  await _loadCategories();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Fixed duplicate orders! Renumbered $count categories.',
+                      ),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted && dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to fix orders: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Fix', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showDeleteDialog(CategoryModel category) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (deleteDialogContext) => AlertDialog(
         title: const Text('Delete Category'),
         content: Text(
           'Are you sure you want to delete "${category.name}"? This action cannot be undone and will be reflected on all connected devices.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(deleteDialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
               try {
                 await _adminService.deleteCategory(category.id);
-                if (mounted) {
-                  Navigator.pop(context);
+                if (mounted && deleteDialogContext.mounted) {
+                  Navigator.pop(deleteDialogContext);
                   await _loadCategories();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -425,8 +681,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                   );
                 }
               } catch (e) {
-                if (mounted) {
-                  Navigator.pop(context);
+                if (mounted && deleteDialogContext.mounted) {
+                  Navigator.pop(deleteDialogContext);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Error deleting category: $e'),
