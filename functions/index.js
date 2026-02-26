@@ -49,7 +49,6 @@ async function deleteKnownUserData(uid) {
     callRequestsByRequesterId: 0,
     callRequestsByDonorId: 0,
     notifications: 0,
-    sessions: 0,
   };
 
   const donorRef = db.collection("donors").doc(uid);
@@ -80,7 +79,6 @@ async function deleteKnownUserData(uid) {
     "userId",
     uid
   );
-  deletedCounts.sessions = await deleteByField("user_sessions", "userId", uid);
 
   return deletedCounts;
 }
