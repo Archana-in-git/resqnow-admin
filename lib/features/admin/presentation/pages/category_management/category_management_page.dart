@@ -132,13 +132,6 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
       appBar: AppBar(
         title: const Text('Category Management'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.update),
-            tooltip: 'Fix duplicate orders',
-            onPressed: _showFixOrdersDialog,
-          ),
-        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddEditDialog(),
@@ -149,7 +142,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
           : _categories.isEmpty
           ? const Center(child: Text('No categories found'))
           : GridView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16).copyWith(bottom: 80),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 6,
                 mainAxisSpacing: 12,
@@ -203,7 +196,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   // Order Badge
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -224,7 +217,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                       ),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 40),
                   // Action Buttons
                   Row(
                     children: [
@@ -236,8 +229,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                           label: const Text('Edit'),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 8),
-                            backgroundColor: Colors.teal,
-                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.teal[100],
+                            foregroundColor: Colors.teal[900],
                           ),
                         ),
                       ),
@@ -249,8 +242,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                           label: const Text('Delete'),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 8),
-                            backgroundColor: Colors.red[600],
-                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.red[100],
+                            foregroundColor: Colors.red[900],
                           ),
                         ),
                       ),
@@ -479,55 +472,6 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showFixOrdersDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Fix Duplicate Orders'),
-        content: const Text(
-          'Renumber all categories sequentially (1, 2, 3, ...)?\n\nThis will fix any duplicate order values.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                final count = await _adminService.fixDuplicateOrders();
-                if (mounted && dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                  await _loadCategories();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Fixed duplicate orders! Renumbered $count categories.',
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted && dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to fix orders: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Fix', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }

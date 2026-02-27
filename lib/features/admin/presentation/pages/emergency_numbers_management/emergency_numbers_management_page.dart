@@ -61,39 +61,100 @@ class _EmergencyNumbersManagementPageState
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _emergencyNumbers.isEmpty
-              ? const Center(child: Text('No emergency numbers found'))
-              : ListView.builder(
-                  itemCount: _emergencyNumbers.length,
-                  itemBuilder: (context, index) {
-                    final number = _emergencyNumbers[index];
-                    return _buildEmergencyNumberTile(number);
-                  },
-                ),
+          ? const Center(child: Text('No emergency numbers found'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(12).copyWith(bottom: 80),
+              itemCount: _emergencyNumbers.length,
+              itemBuilder: (context, index) {
+                final number = _emergencyNumbers[index];
+                return _buildEmergencyNumberCard(number);
+              },
+            ),
     );
   }
 
-  Widget _buildEmergencyNumberTile(EmergencyNumberModel number) {
+  Widget _buildEmergencyNumberCard(EmergencyNumberModel number) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.red,
-          child: const Icon(Icons.phone, color: Colors.white),
-        ),
-        title: Text(number.name),
-        subtitle: Text(number.number),
-        trailing: PopupMenuButton<String>(
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: Text('Edit')),
-            const PopupMenuItem(value: 'delete', child: Text('Delete')),
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // Small Icon
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.red[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Icon(Icons.phone, color: Colors.red[600], size: 24),
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Service Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    number.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    number.number,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.red[700],
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Action Buttons
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => _showAddEditDialog(number: number),
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('Edit'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    backgroundColor: Colors.teal[100],
+                    foregroundColor: Colors.teal[900],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  onPressed: () => _showDeleteDialog(number),
+                  icon: const Icon(Icons.delete, size: 18),
+                  label: const Text('Delete'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    backgroundColor: Colors.red[100],
+                    foregroundColor: Colors.red[900],
+                  ),
+                ),
+              ],
+            ),
           ],
-          onSelected: (value) {
-            if (value == 'edit') {
-              _showAddEditDialog(number: number);
-            } else if (value == 'delete') {
-              _showDeleteDialog(number);
-            }
-          },
         ),
       ),
     );
@@ -139,7 +200,8 @@ class _EmergencyNumbersManagementPageState
           ),
           ElevatedButton(
             onPressed: () async {
-              if (nameController.text.isEmpty || numberController.text.isEmpty) {
+              if (nameController.text.isEmpty ||
+                  numberController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('All fields are required')),
                 );
@@ -148,13 +210,10 @@ class _EmergencyNumbersManagementPageState
 
               try {
                 if (isEdit) {
-                  await _adminService.updateEmergencyNumber(
-                    number.id,
-                    {
-                      'name': nameController.text,
-                      'number': numberController.text,
-                    },
-                  );
+                  await _adminService.updateEmergencyNumber(number.id, {
+                    'name': nameController.text,
+                    'number': numberController.text,
+                  });
                 } else {
                   await _adminService.createEmergencyNumber(
                     EmergencyNumberModel(
@@ -175,9 +234,9 @@ class _EmergencyNumbersManagementPageState
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
                 }
               }
             },
@@ -215,19 +274,14 @@ class _EmergencyNumbersManagementPageState
               } catch (e) {
                 if (mounted) {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
                 }
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.white),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

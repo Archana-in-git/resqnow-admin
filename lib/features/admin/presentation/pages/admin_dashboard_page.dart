@@ -122,14 +122,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   void _refreshAllData() {
-    // Streams auto-update when data changes
-    // No manual refresh needed, but we can trigger one if desired
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Analytics updating in real-time'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    setState(() {
+      _initializeStreams();
+    });
   }
 
   @override

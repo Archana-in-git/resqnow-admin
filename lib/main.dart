@@ -12,7 +12,6 @@ import 'features/admin/presentation/pages/category_management/category_managemen
 import 'features/admin/presentation/pages/emergency_numbers_management/emergency_numbers_management_page.dart';
 import 'features/admin/presentation/pages/resources_management/resources_management_page.dart';
 import 'features/admin/presentation/pages/conditions_management/conditions_management_page.dart';
-import 'features/admin/presentation/pages/home_config_management/home_config_management_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,8 +64,6 @@ class MyApp extends StatelessWidget {
           const ResourcesManagementPage(),
       AdminRoutes.conditionsManagement: (context) =>
           const ConditionsManagementPage(),
-      AdminRoutes.homeConfigManagement: (context) =>
-          const HomeConfigManagementPage(),
     };
   }
 }

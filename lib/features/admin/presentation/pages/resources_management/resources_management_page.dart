@@ -32,17 +32,24 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
   }
 
   Future<void> _loadResources() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final resources = await adminService.getAllResources(limit: 100);
-      setState(() {
-        _resources = resources;
-        _filteredResources = resources;
-      });
+      if (mounted) {
+        setState(() {
+          _resources = resources;
+          _filteredResources = resources;
+        });
+      }
     } catch (e) {
-      _showErrorSnackbar('Error loading resources: $e');
+      if (mounted) {
+        _showErrorSnackbar('Error loading resources: $e');
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -119,11 +126,19 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
                       ],
                     ),
                   )
-                : ListView.builder(
+                : GridView.builder(
+                    padding: const EdgeInsets.all(16).copyWith(bottom: 80),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 5,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 0.85,
+                        ),
                     itemCount: _filteredResources.length,
                     itemBuilder: (context, index) {
                       final resource = _filteredResources[index];
-                      return _buildResourceTile(resource);
+                      return _buildResourceCard(resource);
                     },
                   ),
           ),
@@ -132,56 +147,173 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
     );
   }
 
-  Widget _buildResourceTile(ResourceModel resource) {
+  Widget _buildResourceCard(ResourceModel resource) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ListTile(
-        leading: resource.imageUrls.isNotEmpty
-            ? Image.network(
-                resource.imageUrls.first,
-                width: 50,
-                height: 50,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.image),
-              )
-            : const Icon(Icons.image_not_supported),
-        title: Text(resource.name),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              resource.description,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12),
-            ),
-            Row(
-              children: [
-                if (resource.isFeatured)
-                  Chip(
-                    label: const Text('Featured'),
-                    backgroundColor: Colors.amber[200],
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image Container with Featured Badge
+          Stack(
+            children: [
+              Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
                   ),
-                const SizedBox(width: 8),
-                Chip(label: Text('${resource.tags.length} tags')),
-              ],
+                  color: Colors.grey[200],
+                ),
+                child: resource.imageUrls.isNotEmpty
+                    ? Image.network(
+                        resource.imageUrls.first,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: Colors.blue[50],
+                          child: Center(
+                            child: Icon(
+                              Icons.image,
+                              size: 40,
+                              color: Colors.blue[300],
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: Colors.blue[50],
+                        child: Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            size: 40,
+                            color: Colors.blue[300],
+                          ),
+                        ),
+                      ),
+              ),
+              // Featured Badge
+              if (resource.isFeatured)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.amber[600],
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star, size: 14, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text(
+                          'Featured',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // Content
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Resource Name
+                  Text(
+                    resource.name,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  // Tags
+                  if (resource.tags.isNotEmpty)
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: resource.tags
+                          .take(2)
+                          .map(
+                            (tag) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                tag,
+                                style: const TextStyle(fontSize: 9),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  const Spacer(),
+                  // Action Buttons
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showAddEditDialog(resource),
+                          icon: const Icon(Icons.edit, size: 14),
+                          label: const Text('Edit'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            backgroundColor: Colors.teal[100],
+                            foregroundColor: Colors.teal[900],
+                            textStyle: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showDeleteDialog(resource),
+                          icon: const Icon(Icons.delete, size: 14),
+                          label: const Text('Delete'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            backgroundColor: Colors.red[100],
+                            foregroundColor: Colors.red[900],
+                            textStyle: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-        trailing: PopupMenuButton(
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: Text('Edit')),
-            PopupMenuItem(
-              value: resource.isFeatured ? 'unfeature' : 'feature',
-              child: Text(resource.isFeatured ? 'Unfeature' : 'Feature'),
-            ),
-            const PopupMenuItem(value: 'delete', child: Text('Delete')),
-          ],
-          onSelected: (value) {
-            _handleResourceAction(resource, value);
-          },
-        ),
+          ),
+        ],
       ),
     );
   }

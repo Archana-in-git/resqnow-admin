@@ -734,13 +734,28 @@ class AdminService {
   /// Create condition
   Future<String> createCondition(ConditionModel condition) async {
     try {
-      final docRef = await firestore
-          .collection(conditionsCollection)
-          .add(condition.toJson());
+      // If ConditionModel does not have toJson, use a fallback:
+      final Map<String, dynamic> data =
+          condition is dynamic && condition.toJson != null
+          ? condition.toJson()
+          : conditionToMap(condition);
+      final docRef = await firestore.collection(conditionsCollection).add(data);
       return docRef.id;
     } catch (e) {
       throw Exception('Failed to create condition: $e');
     }
+  }
+
+  // Helper fallback if ConditionModel lacks toJson
+  Map<String, dynamic> conditionToMap(dynamic condition) {
+    // Add all fields you need to save for ConditionModel here
+    // Example:
+    return {
+      'name': condition.name,
+      'description': condition.description,
+      'createdAt': condition.createdAt,
+      // Add other fields as needed
+    };
   }
 
   /// Update condition
