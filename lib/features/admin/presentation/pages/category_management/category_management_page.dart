@@ -262,7 +262,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     final isEdit = category != null;
     final nameController = TextEditingController(text: category?.name ?? '');
     final orderController = TextEditingController(
-      text: isEdit ? (category?.order?.toString() ?? '') : '',
+      text: isEdit ? (category.order?.toString() ?? '') : '',
     );
     final aliasesController = TextEditingController(
       text: category != null ? category.aliases.join(", ") : '',
@@ -306,7 +306,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                         : 'Display Order (optional)',
                     border: const OutlineInputBorder(),
                     hintText: isEdit
-                        ? category?.order.toString()
+                        ? category.order.toString()
                         : 'Auto-assigned if empty',
                   ),
                 ),

@@ -17,7 +17,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 /// Admin Dashboard Home Page with Analytics
 class AdminDashboardPage extends StatefulWidget {
-  const AdminDashboardPage({Key? key}) : super(key: key);
+  const AdminDashboardPage({super.key});
 
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
@@ -704,17 +704,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 ),
                                 itemBuilder: (context) => [
                                   const PopupMenuItem<String>(
-                                    child: Text('Profile'),
                                     value: 'profile',
+                                    child: Text('Profile'),
                                   ),
                                   const PopupMenuItem<String>(
-                                    child: Text('Settings'),
                                     value: 'settings',
+                                    child: Text('Settings'),
                                   ),
                                   const PopupMenuDivider(),
                                   const PopupMenuItem<String>(
-                                    child: Text('Logout'),
                                     value: 'logout',
+                                    child: Text('Logout'),
                                   ),
                                 ],
                                 onSelected: (value) {

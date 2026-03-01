@@ -49,7 +49,7 @@ class CallRequestModel {
 
   /// Create from Firestore JSON
   factory CallRequestModel.fromJson(Map<String, dynamic> json) {
-    DateTime _parseDateTime(dynamic value) {
+    DateTime parseDateTime(dynamic value) {
       if (value == null) {
         return DateTime.now();
       } else if (value is Timestamp) {
@@ -69,9 +69,9 @@ class CallRequestModel {
       requesterId: json['requesterId'] ?? '',
       donorId: json['donorId'] ?? '',
       status: json['status'] ?? 'pending',
-      createdAt: _parseDateTime(json['createdAt']),
+      createdAt: parseDateTime(json['createdAt']),
       approvedAt: json['approvedAt'] != null
-          ? _parseDateTime(json['approvedAt'])
+          ? parseDateTime(json['approvedAt'])
           : null,
       adminNotes: json['adminNotes'],
       requesterName: json['requesterName'],

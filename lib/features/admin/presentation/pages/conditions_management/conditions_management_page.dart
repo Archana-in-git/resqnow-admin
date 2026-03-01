@@ -16,6 +16,7 @@ class ConditionsManagementPage extends StatefulWidget {
 class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
   late AdminService _adminService;
   List<ConditionModel> _conditions = [];
+  List<CategoryModel> _categories = [];
   bool _isLoading = false;
 
   final List<String> _severityLevels = ['low', 'medium', 'high', 'critical'];
@@ -27,7 +28,34 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
       firestore: FirebaseFirestore.instance,
       auth: FirebaseAuth.instance,
     );
-    _loadConditions();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Load categories first, then conditions
+      await _loadCategories();
+      await _loadConditions();
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      print('🔍 Loading categories...');
+      final categories = await _adminService.getAllCategories();
+      print('✅ Categories loaded: ${categories.length}');
+      if (mounted) {
+        setState(() => _categories = categories);
+      }
+    } catch (e) {
+      print('❌ Error loading categories: $e');
+      // Don't show error snackbar for categories, just log it
+    }
   }
 
   Future<void> _loadConditions() async {
@@ -39,7 +67,9 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
         '✅ DEBUG: Conditions loaded successfully: ${conditions.length} found',
       );
       for (var i = 0; i < conditions.length; i++) {
-        print('   [$i] ${conditions[i].name} (${conditions[i].severity})');
+        print(
+          '   [$i] ${conditions[i].name} (${conditions[i].severity}) - Categories: ${conditions[i].categories.join(', ')}',
+        );
       }
       if (mounted) {
         setState(() => _conditions = conditions);
@@ -72,6 +102,68 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// Build image display - shows URL image or local asset
+  Widget _buildConditionImage(ConditionModel condition) {
+    // Display URL image if available
+    if (condition.imageUrls.isNotEmpty) {
+      final imageUrl = condition.imageUrls.first;
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            print('🖼️ Image load error: $error for URL: $imageUrl');
+            return Container(
+              color: Colors.orange[50],
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.broken_image, size: 40, color: Colors.orange[400]),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Image failed',
+                    style: TextStyle(fontSize: 9, color: Colors.orange[600]),
+                  ),
+                ],
+              ),
+            );
+          },
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              color: Colors.grey[100],
+              child: Center(
+                child: CircularProgressIndicator(
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                      : null,
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    // No image provided
+    return Container(
+      color: Colors.grey[200],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.health_and_safety, size: 40, color: Colors.grey[400]),
+          const SizedBox(height: 4),
+          Text(
+            'No image',
+            style: TextStyle(fontSize: 9, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -139,7 +231,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                 crossAxisCount: 3,
                 mainAxisSpacing: 13,
                 crossAxisSpacing: 13,
-                childAspectRatio: 2.4,
+                childAspectRatio: 1.6,
               ),
               itemCount: _conditions.length,
               itemBuilder: (context, index) {
@@ -182,32 +274,35 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
     final severity = condition.severity.toLowerCase();
     final colorScheme = severityMap[severity] ?? severityMap['low']!;
 
-    return Container(
-      margin: const EdgeInsets.all(0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: (colorScheme['color'] as Color).withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image Container (like category cards)
+          Container(
+            height: 100,
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+              color: Colors.white,
+            ),
+            child: _buildConditionImage(condition),
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          children: [
-            // Background - white color
-            Container(decoration: const BoxDecoration(color: Colors.white)),
-            // Content
-            Padding(
+          // Content Container
+          Expanded(
+            child: Padding(
               padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Header
+                  // Header with name and severity
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -220,10 +315,10 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                         child: Icon(
                           Icons.health_and_safety,
                           color: colorScheme['color'] as Color,
-                          size: 20,
+                          size: 16,
                         ),
                       ),
-                      const SizedBox(width: 9),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,7 +326,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                             Text(
                               condition.name,
                               style: const TextStyle(
-                                fontSize: 16,
+                                fontSize: 13,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black87,
                                 height: 1.15,
@@ -239,11 +334,11 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 3),
+                            const SizedBox(height: 2),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
+                                horizontal: 5,
+                                vertical: 1,
                               ),
                               decoration: BoxDecoration(
                                 color: (colorScheme['color'] as Color)
@@ -253,7 +348,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                               child: Text(
                                 condition.severity.toUpperCase(),
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 9,
                                   fontWeight: FontWeight.bold,
                                   color: colorScheme['color'] as Color,
                                   height: 1.0,
@@ -264,17 +359,17 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                         ),
                       ),
                       SizedBox(
-                        width: 28,
-                        height: 28,
+                        width: 24,
+                        height: 24,
                         child: PopupMenuButton<String>(
                           itemBuilder: (context) => [
                             const PopupMenuItem(
                               value: 'edit',
                               child: Row(
                                 children: [
-                                  Icon(Icons.edit, size: 14),
-                                  SizedBox(width: 6),
-                                  Text('Edit', style: TextStyle(fontSize: 11)),
+                                  Icon(Icons.edit, size: 12),
+                                  SizedBox(width: 4),
+                                  Text('Edit', style: TextStyle(fontSize: 10)),
                                 ],
                               ),
                             ),
@@ -284,15 +379,15 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                                 children: [
                                   Icon(
                                     Icons.delete,
-                                    size: 14,
+                                    size: 12,
                                     color: Colors.red,
                                   ),
-                                  SizedBox(width: 6),
+                                  SizedBox(width: 4),
                                   Text(
                                     'Delete',
                                     style: TextStyle(
                                       color: Colors.red,
-                                      fontSize: 11,
+                                      fontSize: 10,
                                     ),
                                   ),
                                 ],
@@ -310,53 +405,93 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                       ),
                     ],
                   ),
-                  // First Aid Steps Count
-                  if (condition.firstAidDescription.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade100,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: Colors.green.shade300,
-                          width: 1,
+                  // First Aid Steps Count or Images count
+                  if (condition.imageUrls.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(
+                            color: Colors.blue.shade300,
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.image,
+                              size: 11,
+                              color: Colors.blue.shade600,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${condition.imageUrls.length} Images',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.playlist_add_check,
-                            size: 14,
-                            color: Colors.green.shade600,
+                    )
+                  else if (condition.firstAidDescription.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade100,
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(
+                            color: Colors.green.shade300,
+                            width: 0.5,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${condition.firstAidDescription.length} Steps',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.green.shade700,
-                              fontWeight: FontWeight.w700,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.playlist_add_check,
+                              size: 11,
+                              color: Colors.green.shade600,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 3),
+                            Text(
+                              '${condition.firstAidDescription.length} Steps',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
                   // View Details Button
                   SizedBox(
                     width: double.infinity,
-                    height: 30,
+                    height: 28,
                     child: ElevatedButton.icon(
                       onPressed: () => _showConditionDetailsDialog(condition),
-                      icon: const Icon(Icons.remove_red_eye, size: 14),
+                      icon: const Icon(Icons.remove_red_eye, size: 12),
                       label: const Text(
-                        'View Details',
+                        'View',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -374,47 +509,89 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatBadgeCompact(IconData icon, int count, String label) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+  Widget _buildCategoriesBadges(List<String> categoryIds) {
+    // Get category names for the IDs
+    final categoryNames = categoryIds
+        .map((id) {
+          final category = _categories.firstWhere(
+            (c) => c.id == id,
+            orElse: () => CategoryModel(
+              id: id,
+              name: 'Unknown',
+              imageUrls: [],
+              description: '',
+              order: 999,
+            ),
+          );
+          return category.name;
+        })
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Icon(icon, size: 17, color: Colors.grey[700]),
-            const SizedBox(height: 2),
-            Text(
-              count.toString(),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-                height: 1.0,
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.category,
+                color: Colors.purple.shade600,
+                size: 20,
               ),
             ),
-            const SizedBox(height: 1),
+            const SizedBox(width: 12),
             Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey[600],
-                height: 1.0,
-                fontWeight: FontWeight.w500,
+              'Categories (${categoryNames.length})',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: categoryNames
+              .map(
+                (name) => Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.purple.shade400,
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.purple.shade700,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ],
     );
   }
 
@@ -518,6 +695,12 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                   // Image Gallery (with actual image previews)
                   if (condition.imageUrls.isNotEmpty) ...[
                     _buildImageGallerySectionModern(condition.imageUrls),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Categories
+                  if (condition.categories.isNotEmpty) ...[
+                    _buildCategoriesBadges(condition.categories),
                     const SizedBox(height: 24),
                   ],
 
@@ -1006,68 +1189,11 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
     );
   }
 
-  Widget _buildFaqsCardSection(String title, List<Map<String, dynamic>> faqs) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.help, color: Colors.purple[600], size: 20),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Column(
-          children: faqs
-              .asMap()
-              .entries
-              .map(
-                (e) => Container(
-                  margin: EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3E5F5),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.purple[200]!),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Q: ${e.value['question'] ?? 'Unknown'}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: Color(0xFF7B1FA2),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'A: ${e.value['answer'] ?? 'No answer provided'}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[700],
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-      ],
-    );
-  }
-
   void _showAddEditDialog({ConditionModel? condition}) {
     final isEdit = condition != null;
     final nameController = TextEditingController(text: condition?.name ?? '');
-    String? _selectedSeverity = condition?.severity ?? 'medium';
+    String? selectedSeverity = condition?.severity ?? 'medium';
+    List<String> selectedCategories = List.from(condition?.categories ?? []);
     final imageUrlsController = TextEditingController(
       text: condition?.imageUrls.join('\n') ?? '',
     );
@@ -1089,8 +1215,8 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (innerContext, setDialogState) => AlertDialog(
           title: Text(isEdit ? 'Edit Condition' : 'Add New Condition'),
           content: SingleChildScrollView(
             child: Column(
@@ -1099,13 +1225,13 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Condition Name',
+                    labelText: 'Condition Name *',
                     border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedSeverity,
+                  value: selectedSeverity,
                   decoration: const InputDecoration(
                     labelText: 'Severity Level',
                     border: OutlineInputBorder(),
@@ -1117,19 +1243,134 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                     );
                   }).toList(),
                   onChanged: (value) {
-                    setState(() => _selectedSeverity = value ?? 'medium');
+                    setDialogState(() => selectedSeverity = value ?? 'medium');
                   },
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: imageUrlsController,
-                  decoration: const InputDecoration(
-                    labelText: 'Image URLs (line separated)',
-                    border: OutlineInputBorder(),
-                    hintText:
-                        'https://example.com/image1.jpg\nhttps://example.com/image2.jpg',
+                // Categories Selector
+                if (_categories.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Categories',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: _categories.map((category) {
+                              return CheckboxListTile(
+                                value:
+                                    selectedCategories.contains(category.id),
+                                onChanged: (value) {
+                                  setDialogState(() {
+                                    if (value == true) {
+                                      selectedCategories.add(category.id);
+                                    } else {
+                                      selectedCategories
+                                          .remove(category.id);
+                                    }
+                                  });
+                                },
+                                title: Text(
+                                  category.name,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                                dense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 0,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
-                  maxLines: 3,
+                const SizedBox(height: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'Medical Images',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[100],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'One per line',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: imageUrlsController,
+                      decoration: InputDecoration(
+                        labelText: 'Image URLs (HTTPS recommended)',
+                        border: const OutlineInputBorder(),
+                        hintText:
+                            'https://example.com/image1.jpg\nhttps://example.com/image2.jpg',
+                        helperText:
+                            'Valid URLs start with https:// or http://',
+                      ),
+                      maxLines: 3,
+                      onChanged: (value) {
+                        setDialogState(() {});
+                      },
+                    ),
+                    if (imageUrlsController.text.trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.blue[200]!),
+                          ),
+                          child: Text(
+                            'URLs Found: ${imageUrlsController.text.split('\n').where((e) => e.trim().isNotEmpty && (e.trim().startsWith('http://') || e.trim().startsWith('https://'))).length}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -1182,7 +1423,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
@@ -1198,7 +1439,9 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                   final imageUrls = imageUrlsController.text
                       .split('\n')
                       .map((e) => e.trim())
-                      .where((e) => e.isNotEmpty)
+                      .where((e) =>
+                          e.isNotEmpty &&
+                          (e.startsWith('http://') || e.startsWith('https://')))
                       .toList();
 
                   final firstAidDescription = firstAidDescriptionController.text
@@ -1219,21 +1462,26 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                       .where((e) => e.isNotEmpty)
                       .toList();
 
+                  print(
+                    '✅ Processing ${imageUrls.length} valid image URLs and ${selectedCategories.length} categories',
+                  );
+
                   if (isEdit) {
                     await _adminService.updateCondition(condition.id, {
                       'name': nameController.text,
-                      'severity': _selectedSeverity,
+                      'severity': selectedSeverity,
                       'imageUrls': imageUrls,
                       'firstAidDescription': firstAidDescription,
                       'doNotDo': doNotDo,
                       'doctorType': doctorType,
+                      'categories': selectedCategories,
                       'videoUrl': videoUrlController.text.isEmpty
                           ? null
                           : videoUrlController.text,
                       'hospitalLocatorLink':
                           hospitalLocatorController.text.isEmpty
-                          ? null
-                          : hospitalLocatorController.text,
+                              ? null
+                              : hospitalLocatorController.text,
                       'updatedAt': DateTime.now(),
                     });
                   } else {
@@ -1241,33 +1489,48 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                       ConditionModel(
                         id: '',
                         name: nameController.text,
-                        severity: _selectedSeverity ?? 'medium',
+                        severity: selectedSeverity ?? 'medium',
                         imageUrls: imageUrls,
                         firstAidDescription: firstAidDescription,
                         doNotDo: doNotDo,
                         requiredKits: [],
                         faqs: [],
                         doctorType: doctorType,
+                        categories: selectedCategories,
                         videoUrl: videoUrlController.text.isEmpty
                             ? null
                             : videoUrlController.text,
                         hospitalLocatorLink:
                             hospitalLocatorController.text.isEmpty
-                            ? null
-                            : hospitalLocatorController.text,
+                                ? null
+                                : hospitalLocatorController.text,
                         createdAt: DateTime.now(),
                       ),
                     );
                   }
-                  if (mounted) {
-                    Navigator.pop(context);
-                    _loadConditions();
+                  if (mounted && dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                    await _loadData();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isEdit
+                              ? 'Condition updated successfully'
+                              : 'Condition created successfully',
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
                   }
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  if (mounted && dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
                   }
                 }
               },
@@ -1298,7 +1561,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                 await _adminService.deleteCondition(condition.id);
                 if (mounted) {
                   Navigator.pop(context);
-                  _loadConditions();
+                  _loadData();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Condition deleted')),
                   );

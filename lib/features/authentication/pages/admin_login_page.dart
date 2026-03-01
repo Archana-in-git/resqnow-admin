@@ -4,7 +4,7 @@ import 'package:resqnow_admin/features/authentication/controllers/admin_auth_con
 
 /// Admin Dashboard Login Page
 class AdminLoginPage extends StatefulWidget {
-  const AdminLoginPage({Key? key}) : super(key: key);
+  const AdminLoginPage({super.key});
 
   @override
   State<AdminLoginPage> createState() => _AdminLoginPageState();

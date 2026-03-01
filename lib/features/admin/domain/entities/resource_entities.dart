@@ -139,10 +139,11 @@ class ConditionEntity extends Equatable {
   final List<Map<String, dynamic>> faqs;
   final List<String> doctorType;
   final String? hospitalLocatorLink;
+  final List<String> categories;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
-  const ConditionEntity({
+  ConditionEntity({
     required this.id,
     required this.name,
     required this.severity,
@@ -154,9 +155,10 @@ class ConditionEntity extends Equatable {
     required this.faqs,
     required this.doctorType,
     this.hospitalLocatorLink,
+    List<String>? categories,
     required this.createdAt,
     this.updatedAt,
-  });
+  }) : categories = categories ?? [];
 
   @override
   List<Object?> get props => [
@@ -171,6 +173,7 @@ class ConditionEntity extends Equatable {
     faqs,
     doctorType,
     hospitalLocatorLink,
+    categories,
     createdAt,
     updatedAt,
   ];

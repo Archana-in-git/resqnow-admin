@@ -9,7 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 /// Blood Donor Management Page
 class BloodDonorManagementPage extends StatefulWidget {
-  const BloodDonorManagementPage({Key? key}) : super(key: key);
+  const BloodDonorManagementPage({super.key});
 
   @override
   State<BloodDonorManagementPage> createState() =>

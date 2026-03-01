@@ -97,7 +97,7 @@ class BloodDonorModel {
   /// Create from Firestore JSON
   factory BloodDonorModel.fromJson(Map<String, dynamic> json) {
     // Helper function to convert Timestamp or String to DateTime
-    DateTime _parseDateTime(dynamic value) {
+    DateTime parseDateTime(dynamic value) {
       if (value == null) {
         return DateTime.now();
       } else if (value is Timestamp) {
@@ -142,9 +142,9 @@ class BloodDonorModel {
         json['medicalConditions'] as List? ?? [],
       ),
       notes: json['notes'] as String?,
-      registeredAt: _parseDateTime(json['registeredAt']),
+      registeredAt: parseDateTime(json['registeredAt']),
       lastDonatedAt: json['lastDonatedAt'] != null
-          ? _parseDateTime(json['lastDonatedAt'])
+          ? parseDateTime(json['lastDonatedAt'])
           : null,
       profileImageUrl: json['profileImageUrl'] as String?,
       isSuspended: json['isSuspended'] as bool? ?? false,
