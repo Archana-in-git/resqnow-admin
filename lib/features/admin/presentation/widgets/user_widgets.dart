@@ -9,11 +9,11 @@ class UserCard extends StatelessWidget {
   final Function(String) onActionSelected;
 
   const UserCard({
-    Key? key,
+    super.key,
     required this.user,
     required this.onTap,
     required this.onActionSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +172,7 @@ class UserCard extends StatelessWidget {
 class UserStatsWidget extends StatelessWidget {
   final List<AdminUserModel> users;
 
-  const UserStatsWidget({Key? key, required this.users}) : super(key: key);
+  const UserStatsWidget({super.key, required this.users});
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +285,7 @@ class UserStatsWidget extends StatelessWidget {
 class RoleStatsWidget extends StatelessWidget {
   final List<AdminUserModel> users;
 
-  const RoleStatsWidget({Key? key, required this.users}) : super(key: key);
+  const RoleStatsWidget({super.key, required this.users});
 
   @override
   Widget build(BuildContext context) {
@@ -351,7 +351,7 @@ class RoleStatsWidget extends StatelessWidget {
 
 /// Empty State Widget
 class EmptyUserListWidget extends StatelessWidget {
-  const EmptyUserListWidget({Key? key}) : super(key: key);
+  const EmptyUserListWidget({super.key});
 
   @override
   Widget build(BuildContext context) {

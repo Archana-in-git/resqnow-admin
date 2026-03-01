@@ -1,4 +1,5 @@
 /// Enums and Constants for Admin Dashboard
+library;
 
 enum UserRole { admin, user, support, moderator }
 

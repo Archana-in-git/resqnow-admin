@@ -7,7 +7,7 @@ import 'package:resqnow_admin/features/admin/presentation/pages/admin_dashboard_
 /// Admin Shell - Handles authentication routing and state management
 /// Routes to login page if not authenticated, admin dashboard if authenticated
 class AdminShell extends StatelessWidget {
-  const AdminShell({Key? key}) : super(key: key);
+  const AdminShell({super.key});
 
   @override
   Widget build(BuildContext context) {

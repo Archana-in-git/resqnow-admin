@@ -43,7 +43,7 @@ class NotificationModel {
 
   /// Create from Firestore JSON
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
-    DateTime _parseDateTime(dynamic value) {
+    DateTime parseDateTime(dynamic value) {
       if (value == null) {
         return DateTime.now();
       } else if (value is Timestamp) {
@@ -66,7 +66,7 @@ class NotificationModel {
       type: json['type'] ?? 'call_approved',
       donorId: json['donorId'],
       callRequestId: json['callRequestId'],
-      createdAt: _parseDateTime(json['createdAt']),
+      createdAt: parseDateTime(json['createdAt']),
       isRead: json['isRead'] ?? false,
     );
   }

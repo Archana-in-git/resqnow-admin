@@ -154,7 +154,7 @@ class ResourceModel {
 
   factory ResourceModel.fromJson(Map<String, dynamic> json) {
     // Helper function to convert Timestamp or String to DateTime
-    DateTime _parseDateTime(dynamic value) {
+    DateTime parseDateTime(dynamic value) {
       if (value == null) {
         return DateTime.now();
       } else if (value is Timestamp) {
@@ -193,9 +193,9 @@ class ResourceModel {
       safetyTips: json['safetyTips'] as String?,
       proTip: json['proTip'] as String?,
       isFeatured: json['isFeatured'] as bool? ?? false,
-      createdAt: _parseDateTime(json['createdAt']),
+      createdAt: parseDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null
-          ? _parseDateTime(json['updatedAt'])
+          ? parseDateTime(json['updatedAt'])
           : null,
     );
   }
@@ -231,6 +231,7 @@ class ConditionModel {
   final List<Map<String, dynamic>> faqs;
   final List<String> doctorType;
   final String? hospitalLocatorLink;
+  final List<String> categories;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -246,9 +247,10 @@ class ConditionModel {
     required this.faqs,
     required this.doctorType,
     this.hospitalLocatorLink,
+    List<String>? categories,
     this.createdAt,
     this.updatedAt,
-  });
+  }) : categories = categories ?? [];
 
   ConditionEntity toEntity() {
     return ConditionEntity(
@@ -263,6 +265,7 @@ class ConditionModel {
       faqs: faqs,
       doctorType: doctorType,
       hospitalLocatorLink: hospitalLocatorLink,
+      categories: categories,
       createdAt: createdAt ?? DateTime.now(),
       updatedAt: updatedAt,
     );
@@ -270,7 +273,7 @@ class ConditionModel {
 
   factory ConditionModel.fromJson(Map<String, dynamic> json) {
     // Helper function to convert Timestamp or String to DateTime
-    DateTime? _parseDateTime(dynamic value) {
+    DateTime? parseDateTime(dynamic value) {
       if (value == null) {
         return null;
       } else if (value is Timestamp) {
@@ -301,7 +304,7 @@ class ConditionModel {
       );
 
       // Safe list conversion for strings
-      List<String> _toStringList(dynamic value) {
+      List<String> toStringList(dynamic value) {
         try {
           if (value == null) return [];
           if (value is List) {
@@ -318,12 +321,12 @@ class ConditionModel {
       }
 
       // Safe list conversion for maps
-      List<Map<String, dynamic>> _toMapList(dynamic value) {
+      List<Map<String, dynamic>> toMapList(dynamic value) {
         try {
           if (value == null) return [];
           if (value is List) {
             return value
-                .where((item) => item is Map)
+                .whereType<Map>()
                 .map((item) => Map<String, dynamic>.from(item as Map))
                 .toList();
           }
@@ -338,19 +341,20 @@ class ConditionModel {
         id: json['id'] as String? ?? '',
         name: json['name'] as String? ?? '',
         severity: json['severity'] as String? ?? 'low',
-        imageUrls: _toStringList(json['imageUrls']),
-        firstAidDescription: _toStringList(
+        imageUrls: toStringList(json['imageUrls']),
+        firstAidDescription: toStringList(
           json['firstAidDescription'] ?? json['firstAidSteps'],
         ),
-        doNotDo: _toStringList(json['doNotDo']),
+        doNotDo: toStringList(json['doNotDo']),
         videoUrl: json['videoUrl'] as String?,
-        requiredKits: _toMapList(json['requiredKits']),
-        faqs: _toMapList(json['faqs']),
-        doctorType: _toStringList(json['doctorType'] ?? json['doctorTypes']),
+        requiredKits: toMapList(json['requiredKits']),
+        faqs: toMapList(json['faqs']),
+        doctorType: toStringList(json['doctorType'] ?? json['doctorTypes']),
         hospitalLocatorLink: json['hospitalLocatorLink'] as String?,
-        createdAt: _parseDateTime(json['createdAt']),
+        categories: toStringList(json['categories']),
+        createdAt: parseDateTime(json['createdAt']),
         updatedAt: json['updatedAt'] != null
-            ? _parseDateTime(json['updatedAt'])
+            ? parseDateTime(json['updatedAt'])
             : null,
       );
     } catch (e, stackTrace) {
@@ -374,6 +378,7 @@ class ConditionModel {
       'faqs': faqs,
       'doctorType': doctorType,
       'hospitalLocatorLink': hospitalLocatorLink,
+      'categories': categories,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };

@@ -9,11 +9,11 @@ class DonorCard extends StatelessWidget {
   final Function(String) onActionSelected;
 
   const DonorCard({
-    Key? key,
+    super.key,
     required this.donor,
     required this.onTap,
     required this.onActionSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -237,7 +237,7 @@ class DonorCard extends StatelessWidget {
 class DonorStatsWidget extends StatelessWidget {
   final List<BloodDonorModel> donors;
 
-  const DonorStatsWidget({Key? key, required this.donors}) : super(key: key);
+  const DonorStatsWidget({super.key, required this.donors});
 
   @override
   Widget build(BuildContext context) {
@@ -341,8 +341,7 @@ class DonorStatsWidget extends StatelessWidget {
 class BloodGroupStatsWidget extends StatelessWidget {
   final List<BloodDonorModel> donors;
 
-  const BloodGroupStatsWidget({Key? key, required this.donors})
-    : super(key: key);
+  const BloodGroupStatsWidget({super.key, required this.donors});
 
   @override
   Widget build(BuildContext context) {
@@ -416,7 +415,7 @@ class BloodGroupStatsWidget extends StatelessWidget {
 
 /// Empty State Widget
 class EmptyDonorListWidget extends StatelessWidget {
-  const EmptyDonorListWidget({Key? key}) : super(key: key);
+  const EmptyDonorListWidget({super.key});
 
   @override
   Widget build(BuildContext context) {

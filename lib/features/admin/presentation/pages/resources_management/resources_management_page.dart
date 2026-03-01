@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 /// First Aid Resources Management Page
 class ResourcesManagementPage extends StatefulWidget {
-  const ResourcesManagementPage({Key? key}) : super(key: key);
+  const ResourcesManagementPage({super.key});
 
   @override
   State<ResourcesManagementPage> createState() =>

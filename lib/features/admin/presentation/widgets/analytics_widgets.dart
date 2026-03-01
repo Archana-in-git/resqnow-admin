@@ -15,7 +15,7 @@ class StatCard extends StatelessWidget {
   final bool isPositiveGrowth;
 
   const StatCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.value,
     required this.description,
@@ -24,7 +24,7 @@ class StatCard extends StatelessWidget {
     required this.backgroundColor,
     required this.iconColor,
     this.isPositiveGrowth = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +114,7 @@ class StatCard extends StatelessWidget {
 class UserGrowthChart extends StatelessWidget {
   final UserGrowthData data;
 
-  const UserGrowthChart({Key? key, required this.data}) : super(key: key);
+  const UserGrowthChart({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -231,7 +231,7 @@ class UserGrowthChart extends StatelessWidget {
 class EmergencyTrendChart extends StatelessWidget {
   final EmergencyTrendData data;
 
-  const EmergencyTrendChart({Key? key, required this.data}) : super(key: key);
+  const EmergencyTrendChart({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -315,8 +315,7 @@ class EmergencyTrendChart extends StatelessWidget {
 class TopConditionsWidget extends StatelessWidget {
   final List<TopConditionData> conditions;
 
-  const TopConditionsWidget({Key? key, required this.conditions})
-    : super(key: key);
+  const TopConditionsWidget({super.key, required this.conditions});
 
   @override
   Widget build(BuildContext context) {
@@ -433,8 +432,7 @@ class TopConditionsWidget extends StatelessWidget {
 class RealTimeActivityPanelWidget extends StatelessWidget {
   final RealTimeActivityPanel data;
 
-  const RealTimeActivityPanelWidget({Key? key, required this.data})
-    : super(key: key);
+  const RealTimeActivityPanelWidget({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -635,8 +633,7 @@ class RealTimeActivityPanelWidget extends StatelessWidget {
 class ContentStatusWidget extends StatelessWidget {
   final ContentStatusMetrics metrics;
 
-  const ContentStatusWidget({Key? key, required this.metrics})
-    : super(key: key);
+  const ContentStatusWidget({super.key, required this.metrics});
 
   @override
   Widget build(BuildContext context) {
@@ -787,9 +784,9 @@ class PushNotificationControlWidget extends StatefulWidget {
   final Function(String, String, String, dynamic) onSendNotification;
 
   const PushNotificationControlWidget({
-    Key? key,
+    super.key,
     required this.onSendNotification,
-  }) : super(key: key);
+  });
 
   @override
   State<PushNotificationControlWidget> createState() =>

@@ -1,4 +1,5 @@
 /// Models for Dashboard Analytics and Statistics
+library;
 
 class AnalyticsStats {
   final int totalUsers;

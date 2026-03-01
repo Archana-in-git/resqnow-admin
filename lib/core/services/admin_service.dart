@@ -111,7 +111,7 @@ class AdminService {
       final snapshot = await firestore
           .collection(usersCollection)
           .where('email', isGreaterThanOrEqualTo: email)
-          .where('email', isLessThan: email + 'z')
+          .where('email', isLessThan: '${email}z')
           .get();
 
       return snapshot.docs
@@ -736,7 +736,7 @@ class AdminService {
     try {
       // If ConditionModel does not have toJson, use a fallback:
       final Map<String, dynamic> data =
-          condition is dynamic && condition.toJson != null
+          condition.toJson != null
           ? condition.toJson()
           : conditionToMap(condition);
       final docRef = await firestore.collection(conditionsCollection).add(data);
@@ -847,7 +847,7 @@ class AdminService {
         // Count active new users
         activeNewUsersLastWeek = newUsersSnap.docs.where((doc) {
           try {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
             return (data['accountStatus'] as String?) == 'active' &&
                 (data['isBlocked'] as bool?) == false;
           } catch (e) {
@@ -1612,7 +1612,7 @@ class AdminService {
 
             final activeNewUsersLastWeek = newUsersSnap.docs.where((doc) {
               try {
-                final data = doc.data() as Map<String, dynamic>;
+                final data = doc.data();
                 return (data['accountStatus'] as String?) == 'active' &&
                     (data['isBlocked'] as bool?) == false;
               } catch (e) {

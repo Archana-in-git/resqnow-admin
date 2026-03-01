@@ -94,7 +94,7 @@ class AdminUserModel {
   /// Create from Firestore JSON
   factory AdminUserModel.fromJson(Map<String, dynamic> json) {
     // Helper function to convert Timestamp, int, or String to DateTime
-    DateTime _parseDateTime(dynamic value) {
+    DateTime parseDateTime(dynamic value) {
       if (value == null) {
         return DateTime.now();
       } else if (value is Timestamp) {
@@ -127,15 +127,15 @@ class AdminUserModel {
       name: json['name'] as String? ?? '',
       role: json['role'] as String? ?? 'user',
       accountStatus: json['accountStatus'] as String? ?? 'active',
-      createdAt: _parseDateTime(json['createdAt']),
+      createdAt: parseDateTime(json['createdAt']),
       lastLogin: json['lastLogin'] != null
-          ? _parseDateTime(json['lastLogin'])
+          ? parseDateTime(json['lastLogin'])
           : null,
       profileImageUrl: json['profileImageUrl'] as String?,
       emailVerified: json['emailVerified'] as bool? ?? false,
       isBlocked: json['isBlocked'] as bool? ?? false,
       suspendedAt: json['suspendedAt'] != null
-          ? _parseDateTime(json['suspendedAt'])
+          ? parseDateTime(json['suspendedAt'])
           : null,
       suspensionReason: json['suspensionReason'] as String?,
     );

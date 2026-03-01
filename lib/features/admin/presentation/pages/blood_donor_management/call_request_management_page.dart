@@ -5,7 +5,7 @@ import 'package:resqnow_admin/core/services/admin_service.dart';
 
 /// Call Request Management Page for Admins
 class CallRequestManagementPage extends StatefulWidget {
-  const CallRequestManagementPage({Key? key}) : super(key: key);
+  const CallRequestManagementPage({super.key});
 
   @override
   State<CallRequestManagementPage> createState() =>
