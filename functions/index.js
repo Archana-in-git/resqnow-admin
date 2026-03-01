@@ -693,3 +693,258 @@ exports.getImage = onRequest(async (req, res) => {
     res.status(500).send("Error retrieving image");
   }
 });
+
+// ============ APPOINTMENT NOTIFICATION FUNCTION ============
+// Triggered when an appointment status is updated
+exports.sendAppointmentNotification = onDocumentCreated(
+  "notifications/{notificationId}",
+  async (event) => {
+    const notificationData = event.data.data();
+    const { userId, title, message, type, appointmentId } = notificationData;
+
+    // Only handle appointment-related notifications
+    if (
+      !type ||
+      (!type.includes("appointment") && !type.includes("appointment_"))
+    ) {
+      console.log("Skipping non-appointment notification:", type);
+      return;
+    }
+
+    if (!userId) {
+      console.error(
+        "Invalid notification: missing userId for appointment notification"
+      );
+      return;
+    }
+
+    try {
+      // Get user FCM token
+      const userDoc = await db.collection("users").doc(userId).get();
+
+      if (!userDoc.exists) {
+        console.warn(`User ${userId} not found for appointment notification`);
+        return;
+      }
+
+      const userData = userDoc.data() || {};
+      const fcmToken = userData?.fcmToken || userData?.deviceToken;
+
+      if (!fcmToken) {
+        console.log(
+          `No FCM token for user ${userId}, cannot send push notification`
+        );
+        // Still mark notification as attempted
+        await db.collection("notifications").doc(event.id).update({
+          deliveredCount: 0,
+          failedCount: 1,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          failureReason: "No FCM token available",
+        });
+        return;
+      }
+
+      // Send push notification to user
+      const response = await admin.messaging().send({
+        token: fcmToken,
+        notification: {
+          title: title || "Appointment Update",
+          body: message || "Your appointment status has been updated",
+        },
+        data: {
+          notificationId: event.id,
+          type: type,
+          appointmentId: appointmentId || "",
+          userId: userId,
+          timestamp: new Date().toISOString(),
+        },
+        android: {
+          priority: "high",
+          notification: {
+            sound: "default",
+            channelId: "default",
+          },
+        },
+        apns: {
+          headers: {
+            "apns-priority": "10",
+          },
+          payload: {
+            aps: {
+              sound: "default",
+              "content-available": 1,
+              badge: 1,
+            },
+          },
+        },
+      });
+
+      console.log(`Appointment notification sent to ${userId}:`, response);
+
+      // Update notification document with delivery status
+      await db.collection("notifications").doc(event.id).update({
+        deliveredCount: 1,
+        failedCount: 0,
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        pushNotificationSent: true,
+      });
+
+      console.log(
+        `✓ Appointment notification ${event.id} successfully sent to user ${userId}`
+      );
+    } catch (error) {
+      console.error(
+        `Error sending appointment notification to ${userId}:`,
+        error.message
+      );
+
+      // Update notification with failure
+      try {
+        await db.collection("notifications").doc(event.id).update({
+          deliveredCount: 0,
+          failedCount: 1,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          failureReason: error.message,
+        });
+      } catch (updateError) {
+        console.error(
+          "Failed to update notification failure status:",
+          updateError
+        );
+      }
+    }
+  }
+);
+
+// ===== Appointment Status Change Notification Function =====
+// Triggers when appointment status is updated and creates notification
+const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
+
+exports.notifyAppointmentStatusChange = onDocumentUpdated(
+  "appointments/{appointmentId}",
+  async (event) => {
+    const beforeData = event.data?.before?.data();
+    const afterData = event.data?.after?.data();
+    const appointmentId = event.params.appointmentId;
+
+    // Check if status field changed
+    if (!beforeData || !afterData || beforeData.status === afterData.status) {
+      console.log("No status change detected for appointment:", appointmentId);
+      return;
+    }
+
+    const newStatus = afterData.status;
+    const userId = afterData.userId;
+    const patientName = afterData.patientName;
+
+    // Only create notification if status changed to approved or rejected
+    if (newStatus !== "approved" && newStatus !== "rejected") {
+      console.log("Status change not relevant for notifications:", newStatus);
+      return;
+    }
+
+    try {
+      // Determine notification message based on status
+      let title = "";
+      let message = "";
+      let type = "";
+
+      if (newStatus === "approved") {
+        title = "Appointment Approved!";
+        message = `Your appointment has been approved. You will receive further details from the hospital.`;
+        type = "appointment_approved";
+      } else if (newStatus === "rejected") {
+        title = "Appointment Update";
+        message = `Your appointment request has been rejected. Please try booking with another doctor or hospital.`;
+        type = "appointment_rejected";
+      }
+
+      // Create notification document for specific user
+      const notificationRef = await db.collection("notifications").add({
+        userId: userId,
+        title: title,
+        message: message,
+        type: type,
+        recipientType: "specific_user",
+        appointmentId: appointmentId,
+        patientName: patientName,
+        status: newStatus,
+        isRead: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log(
+        `✓ Notification created for user ${userId} about appointment ${appointmentId}: ${newStatus}`
+      );
+
+      // Fetch user's FCM token and send direct notification
+      const userDoc = await db.collection("users").doc(userId).get();
+      if (userDoc.exists) {
+        const fcmToken =
+          userDoc.data()?.fcmToken || userDoc.data()?.deviceToken;
+
+        if (fcmToken) {
+          try {
+            const response = await admin.messaging().send({
+              token: fcmToken,
+              notification: {
+                title: title,
+                body: message,
+              },
+              data: {
+                type: type,
+                appointmentId: appointmentId,
+                status: newStatus,
+                timestamp: new Date().toISOString(),
+              },
+              android: {
+                priority: "high",
+                notification: {
+                  sound: "default",
+                  channelId: "default",
+                },
+              },
+              apns: {
+                headers: {
+                  "apns-priority": "10",
+                },
+                payload: {
+                  aps: {
+                    sound: "default",
+                    "content-available": 1,
+                    badge: 1,
+                  },
+                },
+              },
+            });
+            console.log(
+              `✓ FCM message sent to user ${userId} for appointment ${appointmentId}:`,
+              response
+            );
+          } catch (fcmError) {
+            console.warn(
+              `Warning: Failed to send FCM to user ${userId}:`,
+              fcmError.message
+            );
+          }
+        } else {
+          console.warn(`No FCM token found for user ${userId}`);
+        }
+      } else {
+        console.warn(`User document not found for ${userId}`);
+      }
+
+      return {
+        success: true,
+        appointmentId,
+        userId,
+        status: newStatus,
+        notificationId: notificationRef.id,
+      };
+    } catch (error) {
+      console.error("Error in notifyAppointmentStatusChange:", error.message);
+      throw error;
+    }
+  }
+);

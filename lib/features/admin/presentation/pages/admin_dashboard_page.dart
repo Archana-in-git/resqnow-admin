@@ -8,6 +8,7 @@ import 'package:resqnow_admin/features/admin/presentation/pages/category_managem
 import 'package:resqnow_admin/features/admin/presentation/pages/emergency_numbers_management/emergency_numbers_management_page.dart';
 import 'package:resqnow_admin/features/admin/presentation/pages/resources_management/resources_management_page.dart';
 import 'package:resqnow_admin/features/admin/presentation/pages/conditions_management/conditions_management_page.dart';
+import 'package:resqnow_admin/features/admin/presentation/pages/hospital_approvals_page.dart';
 import 'package:resqnow_admin/core/services/admin_service.dart';
 import 'package:resqnow_admin/features/admin/presentation/widgets/analytics_widgets.dart';
 import 'package:resqnow_admin/features/admin/data/models/analytics_model.dart'
@@ -101,6 +102,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       description: 'Manage medical conditions',
       color: AdminDashboardColors.success,
       lightColor: const Color(0xFFC8E6C9),
+    ),
+    AdminMenuItem(
+      icon: Icons.local_hospital,
+      label: 'Hospital Approvals',
+      description: 'Approve or reject hospital registrations',
+      color: Colors.deepPurple,
+      lightColor: const Color(0xFFEDE7F6),
     ),
   ];
 
@@ -767,6 +775,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         break;
       case 7:
         pageToNavigate = const ConditionsManagementPage();
+        break;
+      case 8:
+        pageToNavigate = const HospitalApprovalsPage();
         break;
       default:
         return;
