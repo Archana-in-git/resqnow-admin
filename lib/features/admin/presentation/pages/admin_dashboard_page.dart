@@ -145,12 +145,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     // Keep individual futures for backward compatibility
   }
 
-  void _refreshAllData() {
-    setState(() {
-      _initializeStreams();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 900;
