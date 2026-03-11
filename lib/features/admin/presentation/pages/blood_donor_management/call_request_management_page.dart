@@ -14,7 +14,6 @@ class CallRequestManagementPage extends StatefulWidget {
 
 class _CallRequestManagementPageState extends State<CallRequestManagementPage> {
   late AdminService _adminService;
-  bool _isLoading = false;
   String _selectedStatus =
       'pending'; // Filter by status: 'pending', 'approved', 'rejected', 'all'
 
@@ -238,7 +237,7 @@ class _CallRequestManagementPageState extends State<CallRequestManagementPage> {
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                       ),
-                      onPressed: () => _approveCallRequest(context, requestId),
+                      onPressed: () => _approveCallRequest(requestId),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -250,7 +249,7 @@ class _CallRequestManagementPageState extends State<CallRequestManagementPage> {
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
                       ),
-                      onPressed: () => _rejectCallRequest(context, requestId),
+                      onPressed: () => _rejectCallRequest(requestId),
                     ),
                   ),
                 ],
@@ -335,7 +334,7 @@ class _CallRequestManagementPageState extends State<CallRequestManagementPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color),
       ),
@@ -379,25 +378,22 @@ class _CallRequestManagementPageState extends State<CallRequestManagementPage> {
     );
   }
 
-  Future<void> _approveCallRequest(
-    BuildContext context,
-    String requestId,
-  ) async {
+  Future<void> _approveCallRequest(String requestId) async {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Approve Call Request?'),
         content: const Text(
           'This will notify the user that their call request has been approved. They will be able to contact the donor directly.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Approve'),
           ),
         ],
@@ -405,8 +401,6 @@ class _CallRequestManagementPageState extends State<CallRequestManagementPage> {
     );
 
     if (confirmed != true) return;
-
-    setState(() => _isLoading = true);
 
     try {
       // Use AdminService to approve and create notification
@@ -429,21 +423,16 @@ class _CallRequestManagementPageState extends State<CallRequestManagementPage> {
           ),
         );
       }
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _rejectCallRequest(
-    BuildContext context,
-    String requestId,
-  ) async {
+  Future<void> _rejectCallRequest(String requestId) async {
     final notesController = TextEditingController();
 
     // Show rejection dialog with notes
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Reject Call Request?'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -467,11 +456,11 @@ class _CallRequestManagementPageState extends State<CallRequestManagementPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Reject'),
           ),
         ],
@@ -479,8 +468,6 @@ class _CallRequestManagementPageState extends State<CallRequestManagementPage> {
     );
 
     if (confirmed != true) return;
-
-    setState(() => _isLoading = true);
 
     try {
       final reason = notesController.text.isNotEmpty
@@ -507,8 +494,6 @@ class _CallRequestManagementPageState extends State<CallRequestManagementPage> {
           ),
         );
       }
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 }

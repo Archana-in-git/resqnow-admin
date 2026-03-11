@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:resqnow_admin/features/admin/data/models/admin_user_model.dart';
 import 'package:resqnow_admin/core/services/admin_service.dart';
 import 'package:resqnow_admin/features/admin/presentation/utils/user_helper.dart';
@@ -35,6 +36,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
   List<AdminUserModel> _allUsers = [];
   List<AdminUserModel> _filteredUsers = [];
   bool _isLoading = false;
+  final int _pageSize = 50; // Load 50 users at a time instead of 100
+  int _loadedCount = 50;
+
+  // Debounce timer for search
+  Future<void>? _filterDebounceTimer;
 
   @override
   void initState() {
@@ -44,13 +50,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
       auth: FirebaseAuth.instance,
     );
     _loadUsers();
-    _searchController.addListener(_applyFilters);
+    // Use debounced filter for search to avoid excessive filtering
+    _searchController.addListener(_applyFiltersDebounced);
   }
 
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
     try {
-      final users = await _adminService.getAllUsers(limit: 100);
+      final users = await _adminService.getAllUsers(limit: _loadedCount);
       setState(() {
         _allUsers = users;
         _filteredUsers = users;
@@ -60,6 +67,32 @@ class _UserManagementPageState extends State<UserManagementPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading users: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  /// Load more users for pagination
+  Future<void> _loadMoreUsers() async {
+    setState(() => _isLoading = true);
+    try {
+      _loadedCount += _pageSize;
+      final users = await _adminService.getAllUsers(limit: _loadedCount);
+      setState(() {
+        _allUsers = users;
+      });
+      _applyFilters();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading more users: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -100,6 +133,22 @@ class _UserManagementPageState extends State<UserManagementPage> {
     });
   }
 
+  /// Debounced filter for search input (300ms delay)
+  void _applyFiltersDebounced() {
+    // Cancel previous timer
+    _filterDebounceTimer?.ignore();
+
+    // Debounce with 300ms delay
+    _filterDebounceTimer = Future.delayed(
+      const Duration(milliseconds: 300),
+      () {
+        if (mounted) {
+          _applyFilters();
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -107,7 +156,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
-        shadowColor: Colors.black.withOpacity(0.08),
+        shadowColor: Colors.black.withValues(alpha: 0.08),
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_rounded,
@@ -153,7 +202,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             border: Border.all(color: Colors.black, width: 1.5),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.06),
+                                color: Colors.black.withValues(alpha: 0.06),
                                 blurRadius: 20,
                                 offset: const Offset(0, 4),
                               ),
@@ -269,7 +318,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.06),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.06,
+                                      ),
                                       blurRadius: 12,
                                       offset: const Offset(0, 2),
                                     ),
@@ -290,7 +341,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   // Stats Bar
                   UserStatsWidget(users: _filteredUsers),
                   // User List
-                  _isLoading
+                  _isLoading && _filteredUsers.isEmpty
                       ? const Padding(
                           padding: EdgeInsets.all(40),
                           child: CircularProgressIndicator(
@@ -309,8 +360,54 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             child: ListView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              itemCount: _filteredUsers.length,
+                              itemCount:
+                                  _filteredUsers.length +
+                                  (_loadedCount < _allUsers.length ? 1 : 0),
                               itemBuilder: (context, index) {
+                                // Show load more button at the end
+                                if (index == _filteredUsers.length) {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 20,
+                                    ),
+                                    child: Center(
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              height: 40,
+                                              width: 40,
+                                              child: CircularProgressIndicator(
+                                                color: UserManagementColors
+                                                    .primaryTeal,
+                                              ),
+                                            )
+                                          : ElevatedButton(
+                                              onPressed: _loadMoreUsers,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    UserManagementColors
+                                                        .primaryTeal,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 32,
+                                                      vertical: 12,
+                                                    ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                              ),
+                                              child: const Text(
+                                                'Load More',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                    ),
+                                  );
+                                }
+
                                 final user = _filteredUsers[index];
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 14),
@@ -342,7 +439,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         border: Border.all(color: Colors.black, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -461,7 +558,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: const Icon(
@@ -482,7 +579,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
+                                  color: Colors.black.withValues(alpha: 0.2),
                                   blurRadius: 20,
                                   offset: const Offset(0, 8),
                                 ),
@@ -572,18 +669,19 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              UserManagementColors.warningAmber.withOpacity(
-                                0.12,
+                              UserManagementColors.warningAmber.withValues(
+                                alpha: 0.12,
                               ),
-                              UserManagementColors.warningAmber.withOpacity(
-                                0.06,
+                              UserManagementColors.warningAmber.withValues(
+                                alpha: 0.06,
                               ),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: UserManagementColors.warningAmber
-                                .withOpacity(0.3),
+                            color: UserManagementColors.warningAmber.withValues(
+                              alpha: 0.3,
+                            ),
                             width: 1.5,
                           ),
                         ),
@@ -593,7 +691,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: UserManagementColors.warningAmber
-                                    .withOpacity(0.2),
+                                    .withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
@@ -726,7 +824,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
@@ -842,7 +940,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -888,7 +986,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -966,7 +1064,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         end: Alignment.bottomRight,
                         colors: [
                           UserManagementColors.warningAmber,
-                          UserManagementColors.warningAmber.withOpacity(0.8),
+                          UserManagementColors.warningAmber.withValues(
+                            alpha: 0.8,
+                          ),
                         ],
                       ),
                       borderRadius: const BorderRadius.only(
@@ -992,7 +1092,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: const Icon(
@@ -1037,7 +1137,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             borderRadius: BorderRadius.circular(14),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.06),
+                                color: Colors.black.withValues(alpha: 0.06),
                                 blurRadius: 12,
                                 offset: const Offset(0, 2),
                               ),
@@ -1131,7 +1231,17 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Future<void> _suspendUser(AdminUserModel user, String reason) async {
     try {
       await _adminService.suspendUser(user.uid, reason);
-      _loadUsers();
+      // Update local list instead of reloading from Firestore
+      setState(() {
+        final index = _allUsers.indexWhere((u) => u.uid == user.uid);
+        if (index != -1) {
+          _allUsers[index] = _allUsers[index].copyWith(
+            accountStatus: 'suspended',
+            isBlocked: true,
+          );
+        }
+      });
+      _applyFilters();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1152,7 +1262,17 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Future<void> _reactivateUser(AdminUserModel user) async {
     try {
       await _adminService.reactivateUser(user.uid);
-      _loadUsers();
+      // Update local list instead of reloading from Firestore
+      setState(() {
+        final index = _allUsers.indexWhere((u) => u.uid == user.uid);
+        if (index != -1) {
+          _allUsers[index] = _allUsers[index].copyWith(
+            accountStatus: 'active',
+            isBlocked: false,
+          );
+        }
+      });
+      _applyFilters();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1177,7 +1297,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
   ) async {
     try {
       await _adminService.updateUser(user.uid, {'name': name, 'role': role});
-      _loadUsers();
+      // Update local list instead of reloading from Firestore
+      setState(() {
+        final index = _allUsers.indexWhere((u) => u.uid == user.uid);
+        if (index != -1) {
+          _allUsers[index] = _allUsers[index].copyWith(name: name, role: role);
+        }
+      });
+      _applyFilters();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1197,7 +1324,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   @override
   void dispose() {
-    _searchController.removeListener(_applyFilters);
+    _searchController.removeListener(_applyFiltersDebounced);
+    _filterDebounceTimer?.ignore();
     _searchController.dispose();
     super.dispose();
   }

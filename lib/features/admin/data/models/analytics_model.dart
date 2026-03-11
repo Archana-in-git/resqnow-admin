@@ -10,6 +10,7 @@ class AnalyticsStats {
   final int activeNewUsersLastWeek; // New users that are still active
   final int activeDonors;
   final int emergencyClicksToday;
+  final int totalEmergencyClicksInitiated; // All-time emergency clicks
   final String mostSearchedCondition;
 
   // Growth percentages
@@ -26,6 +27,7 @@ class AnalyticsStats {
     required this.activeNewUsersLastWeek,
     required this.activeDonors,
     required this.emergencyClicksToday,
+    required this.totalEmergencyClicksInitiated,
     required this.mostSearchedCondition,
     this.userGrowthPercent = 0.0,
     this.donorGrowthPercent = 0.0,
@@ -41,6 +43,7 @@ class AnalyticsStats {
     activeNewUsersLastWeek: 0,
     activeDonors: 0,
     emergencyClicksToday: 0,
+    totalEmergencyClicksInitiated: 0,
     mostSearchedCondition: 'N/A',
   );
 }
@@ -201,3 +204,4 @@ class SuspiciousActivity {
     required this.severity,
   });
 }
+

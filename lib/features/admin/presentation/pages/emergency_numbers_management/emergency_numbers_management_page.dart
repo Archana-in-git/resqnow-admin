@@ -160,6 +160,14 @@ class _EmergencyNumbersManagementPageState
     );
   }
 
+  void _showSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   void _showAddEditDialog({EmergencyNumberModel? number}) {
     final isEdit = number != null;
     final nameController = TextEditingController(text: number?.name ?? '');
@@ -167,7 +175,7 @@ class _EmergencyNumbersManagementPageState
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(isEdit ? 'Edit Emergency Number' : 'Add Emergency Number'),
         content: SingleChildScrollView(
           child: Column(
@@ -195,18 +203,18 @@ class _EmergencyNumbersManagementPageState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isEmpty ||
                   numberController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('All fields are required')),
-                );
+                _showSnackBar('All fields are required');
                 return;
               }
+
+              Navigator.pop(dialogContext);
 
               try {
                 if (isEdit) {
@@ -223,21 +231,10 @@ class _EmergencyNumbersManagementPageState
                     ),
                   );
                 }
-                if (mounted) {
-                  Navigator.pop(context);
-                  _loadEmergencyNumbers();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(isEdit ? 'Number updated' : 'Number added'),
-                    ),
-                  );
-                }
+                _loadEmergencyNumbers();
+                _showSnackBar(isEdit ? 'Number updated' : 'Number added');
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
+                _showSnackBar('Error: $e');
               }
             },
             child: Text(isEdit ? 'Update' : 'Add'),
@@ -250,34 +247,26 @@ class _EmergencyNumbersManagementPageState
   void _showDeleteDialog(EmergencyNumberModel number) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Emergency Number'),
         content: Text(
           'Are you sure you want to delete ${number.name} (${number.number})? This action cannot be undone.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
+              Navigator.pop(dialogContext);
+
               try {
                 await _adminService.deleteEmergencyNumber(number.id);
-                if (mounted) {
-                  Navigator.pop(context);
-                  _loadEmergencyNumbers();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Emergency number deleted')),
-                  );
-                }
+                _loadEmergencyNumbers();
+                _showSnackBar('Emergency number deleted');
               } catch (e) {
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
+                _showSnackBar('Error: $e');
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

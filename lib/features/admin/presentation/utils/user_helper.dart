@@ -21,7 +21,7 @@ class UserHelper {
 
   /// Get background color for role badge
   static Color getRoleBgColor(String role) {
-    return getRoleColor(role).withOpacity(0.2);
+    return getRoleColor(role).withValues(alpha: 0.2);
   }
 
   /// Get color for account status
@@ -42,7 +42,7 @@ class UserHelper {
 
   /// Get background color for status badge
   static Color getStatusBgColor(String status) {
-    return getStatusColor(status).withOpacity(0.2);
+    return getStatusColor(status).withValues(alpha: 0.2);
   }
 
   /// Format date for display
@@ -93,7 +93,7 @@ class UserHelper {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -279,3 +279,4 @@ class UserHelper {
     );
   }
 }
+

@@ -25,7 +25,7 @@ class BloodDonorHelper {
 
   /// Get background color for blood group badge
   static Color getBloodGroupBgColor(String bloodGroup) {
-    return getBloodGroupColor(bloodGroup).withOpacity(0.2);
+    return getBloodGroupColor(bloodGroup).withValues(alpha: 0.2);
   }
 
   /// Format date for display
@@ -68,7 +68,7 @@ class BloodDonorHelper {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: (donor.isAvailable ? Colors.green : Colors.orange).withOpacity(0.2),
+        color: (donor.isAvailable ? Colors.green : Colors.orange).withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -172,3 +172,4 @@ class BloodDonorHelper {
     return stats;
   }
 }
+

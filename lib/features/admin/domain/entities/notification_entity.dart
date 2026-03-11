@@ -43,3 +43,4 @@ class NotificationEntity {
   @override
   int get hashCode => notificationId.hashCode;
 }
+

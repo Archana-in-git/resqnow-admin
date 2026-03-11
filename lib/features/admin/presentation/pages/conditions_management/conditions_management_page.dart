@@ -13,9 +13,9 @@ class ConditionsManagementPage extends StatefulWidget {
       _ConditionsManagementPageState();
 }
 
-class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
+class _ConditionsManagementPageState extends State<ConditionsManagementPage>
+    with WidgetsBindingObserver {
   late AdminService _adminService;
-  List<ConditionModel> _conditions = [];
   List<CategoryModel> _categories = [];
   bool _isLoading = false;
 
@@ -24,6 +24,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _adminService = AdminService(
       firestore: FirebaseFirestore.instance,
       auth: FirebaseAuth.instance,
@@ -31,12 +32,48 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
     _loadData();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Refresh categories when app resumes (returns from category management page)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      _loadCategories();
+    }
+  }
+
+  void _showSnackBar(String message, Color backgroundColor) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: backgroundColor),
+      );
+    }
+  }
+
+  Future<void> _handleCategoryTap(CategoryModel category) async {
+    // Check if condition exists for this category
+    final existingConditions = await _adminService.getConditionsByCategory(
+      category.id,
+    );
+    if (mounted) {
+      if (existingConditions.isNotEmpty) {
+        // Show existing condition details
+        _showConditionDetailsDialog(existingConditions.first);
+      } else {
+        // Show "No condition found" dialog with Add button
+        _showNoConditionFoundDialog(category);
+      }
+    }
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // Load categories first, then conditions
       await _loadCategories();
-      await _loadConditions();
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -46,76 +83,186 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
 
   Future<void> _loadCategories() async {
     try {
-      print('🔍 Loading categories...');
       final categories = await _adminService.getAllCategories();
-      print('✅ Categories loaded: ${categories.length}');
       if (mounted) {
         setState(() => _categories = categories);
       }
     } catch (e) {
-      print('❌ Error loading categories: $e');
       // Don't show error snackbar for categories, just log it
     }
   }
 
-  Future<void> _loadConditions() async {
-    setState(() => _isLoading = true);
-    try {
-      print('🔍 DEBUG: Starting to load conditions...');
-      final conditions = await _adminService.getAllConditions();
-      print(
-        '✅ DEBUG: Conditions loaded successfully: ${conditions.length} found',
-      );
-      for (var i = 0; i < conditions.length; i++) {
-        print(
-          '   [$i] ${conditions[i].name} (${conditions[i].severity}) - Categories: ${conditions[i].categories.join(', ')}',
-        );
-      }
-      if (mounted) {
-        setState(() => _conditions = conditions);
-        if (conditions.isEmpty) {
-          print('⚠️ DEBUG: No conditions in database - showing empty state');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'No conditions found. Click the + button to add one.',
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Medical Conditions Management (${_categories.length})'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        elevation: 0,
+      ),
+      floatingActionButton: null,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _categories.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00796B).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.category,
+                      size: 64,
+                      color: const Color(0xFF00796B),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'No Categories Yet',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Create categories in Category Management first',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                ],
               ),
-              duration: Duration(seconds: 3),
+            )
+          : GridView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 6,
+                mainAxisSpacing: 13,
+                crossAxisSpacing: 13,
+                childAspectRatio: 1.0,
+              ),
+              itemCount: _categories.length,
+              itemBuilder: (context, index) {
+                final category = _categories[index];
+                return _buildCategoryTile(category);
+              },
             ),
-          );
-        }
-      }
-    } catch (e, stackTrace) {
-      print('❌ DEBUG: Error loading conditions: $e');
-      print('📍 Stack trace:\n$stackTrace');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    );
+  }
+
+  Widget _buildCategoryTile(CategoryModel category) {
+    return GestureDetector(
+      onTap: () => _handleCategoryTap(category),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image Container
+            Container(
+              height: 100,
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+                color: Colors.white,
+              ),
+              child: _buildCategoryImage(category),
+            ),
+            // Content Container
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Header with name
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.shade100,
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Icon(
+                            Icons.category,
+                            color: Colors.purple.shade600,
+                            size: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            category.name,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                              height: 1.15,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Manage button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _handleCategoryTap(category),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text(
+                          'Manage',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Extract filename from full path (handles legacy full paths)
+  String _extractAssetFilename(String assetPath) {
+    // If path contains slashes, get just the filename
+    if (assetPath.contains('/')) {
+      return assetPath.split('/').last;
     }
+    return assetPath;
   }
 
   /// Build image display - shows URL image or local asset
-  Widget _buildConditionImage(ConditionModel condition) {
+  Widget _buildCategoryImage(CategoryModel category) {
     // Display URL image if available
-    if (condition.imageUrls.isNotEmpty) {
-      final imageUrl = condition.imageUrls.first;
+    if (category.imageUrls.isNotEmpty) {
+      final imageUrl = category.imageUrls.first;
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.network(
           imageUrl,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
-            print('🖼️ Image load error: $error for URL: $imageUrl');
             return Container(
               color: Colors.orange[50],
               child: Column(
@@ -124,7 +271,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                   Icon(Icons.broken_image, size: 40, color: Colors.orange[400]),
                   const SizedBox(height: 4),
                   Text(
-                    'Image failed',
+                    'Image failed to load',
                     style: TextStyle(fontSize: 9, color: Colors.orange[600]),
                   ),
                 ],
@@ -139,12 +286,39 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                 child: CircularProgressIndicator(
                   value: loadingProgress.expectedTotalBytes != null
                       ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
+                            loadingProgress.expectedTotalBytes!
                       : null,
                 ),
               ),
             );
           },
+        ),
+      );
+    }
+
+    // Display local asset if available
+    if (category.iconAsset != null && category.iconAsset!.isNotEmpty) {
+      // Extract just the filename in case full path is stored
+      final filename = _extractAssetFilename(category.iconAsset!);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset(
+          'assets/images/icons/$filename',
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: Colors.blue[50],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.image, size: 40, color: Colors.blue[400]),
+                const SizedBox(height: 4),
+                Text(
+                  'Asset not found',
+                  style: TextStyle(fontSize: 9, color: Colors.blue[600]),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -155,7 +329,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.health_and_safety, size: 40, color: Colors.grey[400]),
+          Icon(Icons.category, size: 40, color: Colors.grey[400]),
           const SizedBox(height: 4),
           Text(
             'No image',
@@ -166,372 +340,21 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Medical Conditions Management (${_conditions.length})'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        elevation: 0,
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddEditDialog(),
-        backgroundColor: const Color(0xFF00796B),
-        child: const Icon(Icons.add, size: 28),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _conditions.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00796B).withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.health_and_safety,
-                      size: 64,
-                      color: const Color(0xFF00796B),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'No Conditions Yet',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Create your first medical condition',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 32),
-                  ElevatedButton.icon(
-                    onPressed: () => _showAddEditDialog(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Condition'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00796B),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : GridView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 13,
-                crossAxisSpacing: 13,
-                childAspectRatio: 1.6,
-              ),
-              itemCount: _conditions.length,
-              itemBuilder: (context, index) {
-                final condition = _conditions[index];
-                return _buildConditionTile(condition);
-              },
-            ),
-    );
-  }
-
-  Widget _buildConditionTile(ConditionModel condition) {
-    // Color mapping for severity
-    final severityMap = {
-      'low': {
-        'color': const Color(0xFF4CAF50),
-        'bgGradient1': const Color(0xFF81C784),
-        'bgGradient2': const Color(0xFF4CAF50),
-        'lightBg': const Color(0xFFE8F5E9),
-      },
-      'medium': {
-        'color': const Color(0xFFFF9800),
-        'bgGradient1': const Color(0xFFFFB74D),
-        'bgGradient2': const Color(0xFFFF9800),
-        'lightBg': const Color(0xFFFFF3E0),
-      },
-      'high': {
-        'color': const Color(0xFFE53935),
-        'bgGradient1': const Color(0xFFEF5350),
-        'bgGradient2': const Color(0xFFE53935),
-        'lightBg': const Color(0xFFFFEBEE),
-      },
-      'critical': {
-        'color': const Color(0xFFC62828),
-        'bgGradient1': const Color(0xFFD32F2F),
-        'bgGradient2': const Color(0xFFC62828),
-        'lightBg': const Color(0xFFB71C1C).withOpacity(0.15),
-      },
-    };
-
-    final severity = condition.severity.toLowerCase();
-    final colorScheme = severityMap[severity] ?? severityMap['low']!;
-
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image Container (like category cards)
-          Container(
-            height: 100,
-            width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-              color: Colors.white,
-            ),
-            child: _buildConditionImage(condition),
-          ),
-          // Content Container
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Header with name and severity
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: colorScheme['lightBg'] as Color,
-                          borderRadius: BorderRadius.circular(7),
-                        ),
-                        child: Icon(
-                          Icons.health_and_safety,
-                          color: colorScheme['color'] as Color,
-                          size: 16,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              condition.name,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                                height: 1.15,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: (colorScheme['color'] as Color)
-                                    .withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                              child: Text(
-                                condition.severity.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                  color: colorScheme['color'] as Color,
-                                  height: 1.0,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: PopupMenuButton<String>(
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'edit',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.edit, size: 12),
-                                  SizedBox(width: 4),
-                                  Text('Edit', style: TextStyle(fontSize: 10)),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.delete,
-                                    size: 12,
-                                    color: Colors.red,
-                                  ),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'Delete',
-                                    style: TextStyle(
-                                      color: Colors.red,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                          onSelected: (value) {
-                            if (value == 'edit') {
-                              _showAddEditDialog(condition: condition);
-                            } else if (value == 'delete') {
-                              _showDeleteDialog(condition);
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  // First Aid Steps Count or Images count
-                  if (condition.imageUrls.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade100,
-                          borderRadius: BorderRadius.circular(5),
-                          border: Border.all(
-                            color: Colors.blue.shade300,
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.image,
-                              size: 11,
-                              color: Colors.blue.shade600,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${condition.imageUrls.length} Images',
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.blue.shade700,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else if (condition.firstAidDescription.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(5),
-                          border: Border.all(
-                            color: Colors.green.shade300,
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.playlist_add_check,
-                              size: 11,
-                              color: Colors.green.shade600,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${condition.firstAidDescription.length} Steps',
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.green.shade700,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                  // View Details Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 28,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showConditionDetailsDialog(condition),
-                      icon: const Icon(Icons.remove_red_eye, size: 12),
-                      label: const Text(
-                        'View',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00796B),
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCategoriesBadges(List<String> categoryIds) {
     // Get category names for the IDs
-    final categoryNames = categoryIds
-        .map((id) {
-          final category = _categories.firstWhere(
-            (c) => c.id == id,
-            orElse: () => CategoryModel(
-              id: id,
-              name: 'Unknown',
-              imageUrls: [],
-              description: '',
-              order: 999,
-            ),
-          );
-          return category.name;
-        })
-        .toList();
+    final categoryNames = categoryIds.map((id) {
+      final category = _categories.firstWhere(
+        (c) => c.id == id,
+        orElse: () => CategoryModel(
+          id: id,
+          name: 'Unknown',
+          imageUrls: [],
+          description: '',
+          order: 999,
+        ),
+      );
+      return category.name;
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,10 +376,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
             const SizedBox(width: 12),
             Text(
               'Categories (${categoryNames.length})',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -574,10 +394,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                   decoration: BoxDecoration(
                     color: Colors.purple.shade100,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.purple.shade400,
-                      width: 1,
-                    ),
+                    border: Border.all(color: Colors.purple.shade400, width: 1),
                   ),
                   child: Text(
                     name,
@@ -595,22 +412,38 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
     );
   }
 
-  void _showConditionDetailsDialog(ConditionModel condition) {
-    Color severityColor = Colors.grey;
-    Color severityBgColor = Colors.grey[100]!;
-    if (condition.severity == 'low') {
-      severityColor = const Color(0xFF4CAF50);
-      severityBgColor = const Color(0xFFE8F5E9);
-    } else if (condition.severity == 'medium') {
-      severityColor = const Color(0xFFFF9800);
-      severityBgColor = const Color(0xFFFFF3E0);
-    } else if (condition.severity == 'high') {
-      severityColor = const Color(0xFFF44336);
-      severityBgColor = const Color(0xFFFFEBEE);
-    } else if (condition.severity == 'critical') {
-      severityColor = const Color(0xFFC62828);
-      severityBgColor = const Color(0xFFB71C1C).withOpacity(0.1);
+  /// Get severity color palette based on severity level
+  Map<String, Color> _getSeverityColors(String severity) {
+    switch (severity) {
+      case 'low':
+        return {
+          'color': const Color(0xFF4CAF50),
+          'bgColor': const Color(0xFFE8F5E9),
+        };
+      case 'medium':
+        return {
+          'color': const Color(0xFFFF9800),
+          'bgColor': const Color(0xFFFFF3E0),
+        };
+      case 'high':
+        return {
+          'color': const Color(0xFFF44336),
+          'bgColor': const Color(0xFFFFEBEE),
+        };
+      case 'critical':
+        return {
+          'color': const Color(0xFFC62828),
+          'bgColor': const Color(0xFFB71C1C).withValues(alpha: 0.1),
+        };
+      default:
+        return {'color': Colors.grey, 'bgColor': Colors.grey.shade100};
     }
+  }
+
+  void _showConditionDetailsDialog(ConditionModel condition) {
+    final severityColors = _getSeverityColors(condition.severity);
+    final Color severityColor = severityColors['color']!;
+    final Color severityBgColor = severityColors['bgColor']!;
 
     showModalBottomSheet(
       context: context,
@@ -726,12 +559,6 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                     const SizedBox(height: 16),
                   ],
 
-                  // Do Not Do
-                  if (condition.doNotDo.isNotEmpty) ...[
-                    _buildStepsCard('Do Not Do', condition.doNotDo, Colors.red),
-                    const SizedBox(height: 16),
-                  ],
-
                   // Video URL
                   if (condition.videoUrl != null &&
                       condition.videoUrl!.isNotEmpty) ...[
@@ -754,15 +581,6 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                       content: condition.hospitalLocatorLink!,
                       bgColor: const Color(0xFFECEFF1),
                       iconColor: const Color(0xFF455A64),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Required Kits
-                  if (condition.requiredKits.isNotEmpty) ...[
-                    _buildKitsCardSection(
-                      'Required Kits',
-                      condition.requiredKits,
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -913,7 +731,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -1020,7 +838,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: iconColor.withOpacity(0.2)),
+        border: Border.all(color: iconColor.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1054,7 +872,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accentColor.withOpacity(0.3)),
+        border: Border.all(color: accentColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1131,77 +949,48 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
     );
   }
 
-  Widget _buildKitsCardSection(String title, List<Map<String, dynamic>> kits) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.medical_services, color: Colors.red[600], size: 20),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+  void _showNoConditionFoundDialog(CategoryModel category) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('No Condition Found'),
+        content: Text(
+          'No condition exists for "${category.name}" yet.\n\nWould you like to add one?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _showAddEditDialog(category: category);
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Add Condition'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Column(
-          children: kits
-              .asMap()
-              .entries
-              .map(
-                (e) => Container(
-                  margin: EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFEBEE),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.red[200]!),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        e.value['name'] ?? 'Kit ${e.key + 1}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                      if (e.value['description'] != null) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          e.value['description'],
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
-  void _showAddEditDialog({ConditionModel? condition}) {
+  void _showAddEditDialog({
+    ConditionModel? condition,
+    CategoryModel? category,
+  }) {
     final isEdit = condition != null;
     final nameController = TextEditingController(text: condition?.name ?? '');
     String? selectedSeverity = condition?.severity ?? 'medium';
-    List<String> selectedCategories = List.from(condition?.categories ?? []);
     final imageUrlsController = TextEditingController(
       text: condition?.imageUrls.join('\n') ?? '',
     );
     final firstAidDescriptionController = TextEditingController(
       text: condition?.firstAidDescription.join('\n') ?? '',
-    );
-    final doNotDoController = TextEditingController(
-      text: condition?.doNotDo.join('\n') ?? '',
     );
     final doctorTypeController = TextEditingController(
       text: condition?.doctorType.join(', ') ?? '',
@@ -1247,58 +1036,6 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Categories Selector
-                if (_categories.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Categories',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: _categories.map((category) {
-                              return CheckboxListTile(
-                                value:
-                                    selectedCategories.contains(category.id),
-                                onChanged: (value) {
-                                  setDialogState(() {
-                                    if (value == true) {
-                                      selectedCategories.add(category.id);
-                                    } else {
-                                      selectedCategories
-                                          .remove(category.id);
-                                    }
-                                  });
-                                },
-                                title: Text(
-                                  category.name,
-                                  style: const TextStyle(fontSize: 13),
-                                ),
-                                dense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 0,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                const SizedBox(height: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1339,8 +1076,7 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                         border: const OutlineInputBorder(),
                         hintText:
                             'https://example.com/image1.jpg\nhttps://example.com/image2.jpg',
-                        helperText:
-                            'Valid URLs start with https:// or http://',
+                        helperText: 'Valid URLs start with https:// or http://',
                       ),
                       maxLines: 3,
                       onChanged: (value) {
@@ -1394,16 +1130,6 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                 ),
                 const SizedBox(height: 16),
                 TextField(
-                  controller: doNotDoController,
-                  decoration: const InputDecoration(
-                    labelText: 'Do Not Do (line separated)',
-                    border: OutlineInputBorder(),
-                    hintText: 'Don\'t do this\nDon\'t do that',
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 16),
-                TextField(
                   controller: videoUrlController,
                   decoration: const InputDecoration(
                     labelText: 'Video URL (optional)',
@@ -1429,28 +1155,25 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
             ElevatedButton(
               onPressed: () async {
                 if (nameController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Name cannot be empty')),
-                  );
+                  _showSnackBar('Name cannot be empty', Colors.red);
                   return;
                 }
+
+                Navigator.pop(dialogContext);
 
                 try {
                   final imageUrls = imageUrlsController.text
                       .split('\n')
                       .map((e) => e.trim())
-                      .where((e) =>
-                          e.isNotEmpty &&
-                          (e.startsWith('http://') || e.startsWith('https://')))
+                      .where(
+                        (e) =>
+                            e.isNotEmpty &&
+                            (e.startsWith('http://') ||
+                                e.startsWith('https://')),
+                      )
                       .toList();
 
                   final firstAidDescription = firstAidDescriptionController.text
-                      .split('\n')
-                      .map((e) => e.trim())
-                      .where((e) => e.isNotEmpty)
-                      .toList();
-
-                  final doNotDo = doNotDoController.text
                       .split('\n')
                       .map((e) => e.trim())
                       .where((e) => e.isNotEmpty)
@@ -1462,29 +1185,25 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                       .where((e) => e.isNotEmpty)
                       .toList();
 
-                  print(
-                    '✅ Processing ${imageUrls.length} valid image URLs and ${selectedCategories.length} categories',
-                  );
-
                   if (isEdit) {
+                    // Keep existing categories when updating
                     await _adminService.updateCondition(condition.id, {
                       'name': nameController.text,
                       'severity': selectedSeverity,
                       'imageUrls': imageUrls,
                       'firstAidDescription': firstAidDescription,
-                      'doNotDo': doNotDo,
                       'doctorType': doctorType,
-                      'categories': selectedCategories,
                       'videoUrl': videoUrlController.text.isEmpty
                           ? null
                           : videoUrlController.text,
                       'hospitalLocatorLink':
                           hospitalLocatorController.text.isEmpty
-                              ? null
-                              : hospitalLocatorController.text,
+                          ? null
+                          : hospitalLocatorController.text,
                       'updatedAt': DateTime.now(),
                     });
                   } else {
+                    // Link to current category when creating
                     await _adminService.createCondition(
                       ConditionModel(
                         id: '',
@@ -1492,93 +1211,35 @@ class _ConditionsManagementPageState extends State<ConditionsManagementPage> {
                         severity: selectedSeverity ?? 'medium',
                         imageUrls: imageUrls,
                         firstAidDescription: firstAidDescription,
-                        doNotDo: doNotDo,
-                        requiredKits: [],
                         faqs: [],
                         doctorType: doctorType,
-                        categories: selectedCategories,
+                        categories: category != null ? [category.id] : [],
                         videoUrl: videoUrlController.text.isEmpty
                             ? null
                             : videoUrlController.text,
                         hospitalLocatorLink:
                             hospitalLocatorController.text.isEmpty
-                                ? null
-                                : hospitalLocatorController.text,
+                            ? null
+                            : hospitalLocatorController.text,
                         createdAt: DateTime.now(),
                       ),
                     );
                   }
-                  if (mounted && dialogContext.mounted) {
-                    Navigator.pop(dialogContext);
-                    await _loadData();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          isEdit
-                              ? 'Condition updated successfully'
-                              : 'Condition created successfully',
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
+                  await _loadData();
+                  _showSnackBar(
+                    isEdit
+                        ? 'Condition updated successfully'
+                        : 'Condition created successfully',
+                    Colors.green,
+                  );
                 } catch (e) {
-                  if (mounted && dialogContext.mounted) {
-                    Navigator.pop(dialogContext);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
+                  _showSnackBar('Error: $e', Colors.red);
                 }
               },
               child: Text(isEdit ? 'Update' : 'Add'),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showDeleteDialog(ConditionModel condition) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Condition'),
-        content: Text(
-          'Are you sure you want to delete "${condition.name}"? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await _adminService.deleteCondition(condition.id);
-                if (mounted) {
-                  Navigator.pop(context);
-                  _loadData();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Condition deleted')),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }

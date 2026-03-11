@@ -76,3 +76,4 @@ class AdminConstants {
   static const int defaultDisplayOrder = 999;
   static const bool defaultVisibility = true;
 }
+

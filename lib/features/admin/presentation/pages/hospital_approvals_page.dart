@@ -91,113 +91,110 @@ class _HospitalApprovalsPageState extends State<HospitalApprovalsPage> {
                 doc.data() as Map<String, dynamic>,
                 doc.id,
               );
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            hospital.name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: hospital.status == 'approved'
-                                  ? Colors.green.shade100
-                                  : hospital.status == 'rejected'
-                                  ? Colors.red.shade100
-                                  : Colors.orange.shade100,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              hospital.status.toUpperCase(),
-                              style: TextStyle(
-                                color: hospital.status == 'approved'
-                                    ? Colors.green
-                                    : hospital.status == 'rejected'
-                                    ? Colors.red
-                                    : Colors.orange,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Address: ${hospital.address}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      Text(
-                        'Phone: ${hospital.phone}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      Text(
-                        'Email: ${hospital.email}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed: hospital.status == 'approved'
-                                ? null
-                                : () async {
-                                    await _updateStatus(
-                                      hospital.id,
-                                      'approved',
-                                    );
-                                  },
-                            icon: const Icon(Icons.check),
-                            label: const Text('Approve'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              disabledBackgroundColor: Colors.green.shade200,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          ElevatedButton.icon(
-                            onPressed: hospital.status == 'rejected'
-                                ? null
-                                : () async {
-                                    await _updateStatus(
-                                      hospital.id,
-                                      'rejected',
-                                    );
-                                  },
-                            icon: const Icon(Icons.close),
-                            label: const Text('Reject'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              disabledBackgroundColor: Colors.red.shade200,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
+              return _buildHospitalCard(hospital);
             },
           );
         },
       ),
     );
   }
+
+  Widget _buildHospitalCard(HospitalModel hospital) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  hospital.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: hospital.status == 'approved'
+                        ? Colors.green.shade100
+                        : hospital.status == 'rejected'
+                        ? Colors.red.shade100
+                        : Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    hospital.status.toUpperCase(),
+                    style: TextStyle(
+                      color: hospital.status == 'approved'
+                          ? Colors.green
+                          : hospital.status == 'rejected'
+                          ? Colors.red
+                          : Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Address: ${hospital.address}',
+              style: const TextStyle(fontSize: 14),
+            ),
+            Text(
+              'Phone: ${hospital.phone}',
+              style: const TextStyle(fontSize: 14),
+            ),
+            Text(
+              'Email: ${hospital.email}',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: hospital.status == 'approved'
+                      ? null
+                      : () async {
+                          await _updateStatus(hospital.id, 'approved');
+                        },
+                  icon: const Icon(Icons.check),
+                  label: const Text('Approve'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    disabledBackgroundColor: Colors.green.shade200,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: hospital.status == 'rejected'
+                      ? null
+                      : () async {
+                          await _updateStatus(hospital.id, 'rejected');
+                        },
+                  icon: const Icon(Icons.close),
+                  label: const Text('Reject'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    disabledBackgroundColor: Colors.red.shade200,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+

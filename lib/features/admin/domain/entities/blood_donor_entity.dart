@@ -67,3 +67,4 @@ class BloodDonorEntity extends Equatable {
     suspensionReason,
   ];
 }
+

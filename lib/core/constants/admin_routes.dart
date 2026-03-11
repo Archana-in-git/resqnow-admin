@@ -44,3 +44,4 @@ class AdminRoutes {
   // Analytics routes
   static const String analytics = '/admin/analytics';
 }
+

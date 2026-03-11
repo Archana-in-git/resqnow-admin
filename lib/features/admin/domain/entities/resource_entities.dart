@@ -8,8 +8,6 @@ class CategoryEntity extends Equatable {
   final int displayOrder;
   final bool isVisible;
   final List<String>? searchAliases;
-  final DateTime createdAt;
-  final DateTime? updatedAt;
 
   const CategoryEntity({
     required this.id,
@@ -18,8 +16,6 @@ class CategoryEntity extends Equatable {
     required this.displayOrder,
     required this.isVisible,
     this.searchAliases,
-    required this.createdAt,
-    this.updatedAt,
   });
 
   @override
@@ -30,8 +26,6 @@ class CategoryEntity extends Equatable {
     displayOrder,
     isVisible,
     searchAliases,
-    createdAt,
-    updatedAt,
   ];
 }
 
@@ -40,43 +34,15 @@ class EmergencyNumberEntity extends Equatable {
   final String id;
   final String serviceName;
   final String phoneNumber;
-  final String category;
-  final String? description;
-  final String? areaOfCoverage;
-  final String? operatingHours;
-  final int priority;
-  final bool isActive;
-  final DateTime createdAt;
-  final DateTime? updatedAt;
 
   const EmergencyNumberEntity({
     required this.id,
     required this.serviceName,
     required this.phoneNumber,
-    required this.category,
-    this.description,
-    this.areaOfCoverage,
-    this.operatingHours,
-    required this.priority,
-    required this.isActive,
-    required this.createdAt,
-    this.updatedAt,
   });
 
   @override
-  List<Object?> get props => [
-    id,
-    serviceName,
-    phoneNumber,
-    category,
-    description,
-    areaOfCoverage,
-    operatingHours,
-    priority,
-    isActive,
-    createdAt,
-    updatedAt,
-  ];
+  List<Object?> get props => [id, serviceName, phoneNumber];
 }
 
 /// First Aid Resource entity
@@ -133,9 +99,7 @@ class ConditionEntity extends Equatable {
   final String severity;
   final List<String> imageUrls;
   final List<String> firstAidDescription;
-  final List<String> doNotDo;
   final String? videoUrl;
-  final List<Map<String, dynamic>> requiredKits;
   final List<Map<String, dynamic>> faqs;
   final List<String> doctorType;
   final String? hospitalLocatorLink;
@@ -149,9 +113,7 @@ class ConditionEntity extends Equatable {
     required this.severity,
     required this.imageUrls,
     required this.firstAidDescription,
-    required this.doNotDo,
     this.videoUrl,
-    required this.requiredKits,
     required this.faqs,
     required this.doctorType,
     this.hospitalLocatorLink,
@@ -167,9 +129,7 @@ class ConditionEntity extends Equatable {
     severity,
     imageUrls,
     firstAidDescription,
-    doNotDo,
     videoUrl,
-    requiredKits,
     faqs,
     doctorType,
     hospitalLocatorLink,
@@ -178,3 +138,4 @@ class ConditionEntity extends Equatable {
     updatedAt,
   ];
 }
+

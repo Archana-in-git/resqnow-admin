@@ -42,9 +42,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   int _selectedMenuIndex = 0;
   late AdminService _adminService;
   late Stream<models.AnalyticsStats> _analyticsStatsStream;
-  late Future<models.UserGrowthData> _userGrowthFuture;
-  late Future<models.EmergencyTrendData> _emergencyTrendFuture;
   late Stream<Map<String, int>> _callRequestStatsStream;
+
+  // Cache for combined secondary data
+  late Future<_SecondaryDataCache> _secondaryDataCacheFuture;
 
   final List<AdminMenuItem> _menuItems = [
     AdminMenuItem(
@@ -123,10 +124,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   void _initializeStreams() {
+    // Start all streams immediately
     _analyticsStatsStream = _adminService.getAnalyticsStatsStream();
-    _userGrowthFuture = _adminService.getUserGrowthData();
-    _emergencyTrendFuture = _adminService.getEmergencyTrendData();
     _callRequestStatsStream = _adminService.getCallRequestStatsStream();
+
+    // Load all secondary data in parallel using Future.wait()
+    _secondaryDataCacheFuture =
+        Future.wait<dynamic>([
+          _adminService.getUserGrowthData(),
+          _adminService.getEmergencyTrendData(),
+          _adminService.getHospitalApprovalStats(),
+        ]).then((results) {
+          return _SecondaryDataCache(
+            userGrowthData: results[0] as models.UserGrowthData,
+            emergencyTrendData: results[1] as models.EmergencyTrendData,
+            hospitalApprovalStats: results[2] as Map<String, int>,
+          );
+        });
+
+    // Keep individual futures for backward compatibility
   }
 
   void _refreshAllData() {
@@ -284,6 +300,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   backgroundColor: const Color(0xFFFFCDD2),
                   iconColor: AdminDashboardColors.emergency,
                 ),
+                const SizedBox(width: 16),
+                StatCard(
+                  icon: Icons.warning_rounded,
+                  title: 'Total Emergency Clicks',
+                  value: stats.totalEmergencyClicksInitiated.toString(),
+                  description: 'All-time',
+                  growthPercent: 0.0,
+                  backgroundColor: const Color(0xFFFFEBEE),
+                  iconColor: AdminDashboardColors.emergency,
+                ),
               ],
             ),
           );
@@ -294,126 +320,144 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildChartsColumn() {
     return RepaintBoundary(
-      child: Column(
-        children: [
-          // User Growth Chart
-          FutureBuilder<models.UserGrowthData>(
-            future: _userGrowthFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(child: CircularProgressIndicator()),
-                );
-              }
-              final data =
-                  snapshot.data ??
-                  models.UserGrowthData(months: [], userCounts: []);
-              return UserGrowthChart(data: data);
-            },
-          ),
-          const SizedBox(height: 20),
+      child: FutureBuilder<_SecondaryDataCache>(
+        future: _secondaryDataCacheFuture,
+        builder: (context, snapshot) {
+          final cache = snapshot.data;
+          final userGrowthData =
+              cache?.userGrowthData ??
+              models.UserGrowthData(months: [], userCounts: []);
+          final emergencyTrendData =
+              cache?.emergencyTrendData ??
+              models.EmergencyTrendData(labels: [], counts: []);
 
-          // Emergency Trend Chart
-          FutureBuilder<models.EmergencyTrendData>(
-            future: _emergencyTrendFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Container(
+          return Column(
+            children: [
+              // User Growth Chart
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  cache == null)
+                Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Center(child: CircularProgressIndicator()),
-                );
-              }
-              final data =
-                  snapshot.data ??
-                  models.EmergencyTrendData(labels: [], counts: []);
-              return EmergencyTrendChart(data: data);
-            },
-          ),
-          const SizedBox(height: 20),
-        ],
+                )
+              else
+                UserGrowthChart(data: userGrowthData),
+              const SizedBox(height: 20),
+
+              // Emergency Trend Chart
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  cache == null)
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(child: CircularProgressIndicator()),
+                )
+              else
+                EmergencyTrendChart(data: emergencyTrendData),
+              const SizedBox(height: 20),
+            ],
+          );
+        },
       ),
     );
   }
 
   Widget _buildBloodDonorAnalyticsSection() {
-    return _buildBloodDonorCardsGrid();
+    return _buildBloodDonorAndHospitalCardsGrid();
   }
 
-  Widget _buildBloodDonorCardsGrid() {
+  Widget _buildBloodDonorAndHospitalCardsGrid() {
     return RepaintBoundary(
       child: StreamBuilder<models.AnalyticsStats>(
         stream: _analyticsStatsStream,
-        builder: (context, snapshot1) {
-          if (snapshot1.connectionState == ConnectionState.waiting &&
-              !snapshot1.hasData) {
+        builder: (context, statSnapshot) {
+          if (statSnapshot.connectionState == ConnectionState.waiting &&
+              !statSnapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final stats = snapshot1.data ?? models.AnalyticsStats.empty();
+          final stats = statSnapshot.data ?? models.AnalyticsStats.empty();
 
-          return RepaintBoundary(
-            child: StreamBuilder<Map<String, int>>(
-              stream: _callRequestStatsStream,
-              builder: (context, snapshot2) {
-                if (snapshot2.connectionState == ConnectionState.waiting &&
-                    !snapshot2.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+          // Build call request and hospital stats in parallel
+          return StreamBuilder<Map<String, int>>(
+            stream: _callRequestStatsStream,
+            builder: (context, callSnapshot) {
+              return FutureBuilder<_SecondaryDataCache>(
+                future: _secondaryDataCacheFuture,
+                builder: (context, cacheSnapshot) {
+                  // All data available or showing defaults
+                  final callStats = callSnapshot.data ?? {};
+                  final pending = callStats['pending'] ?? 0;
+                  final approved = callStats['approved'] ?? 0;
 
-                final callStats = snapshot2.data ?? {};
-                final pending = callStats['pending'] ?? 0;
-                final approved = callStats['approved'] ?? 0;
+                  final hospitalStats =
+                      cacheSnapshot.data?.hospitalApprovalStats ?? {};
+                  final totalHospitals = hospitalStats['total'] ?? 0;
+                  final pendingHospitals = hospitalStats['pending'] ?? 0;
 
-                return GridView.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _buildBloodDonorCard(
-                      icon: Icons.bloodtype,
-                      title: 'Active Donors',
-                      value: stats.activeDonors.toString(),
-                      color: AdminDashboardColors.accentColor,
-                      bgColor: Colors.white,
-                    ),
-                    _buildBloodDonorCard(
-                      icon: Icons.search,
-                      title: 'Top Searched',
-                      value: stats.mostSearchedCondition.length > 12
-                          ? '${stats.mostSearchedCondition.substring(0, 12)}...'
-                          : stats.mostSearchedCondition,
-                      color: AdminDashboardColors.warning,
-                      bgColor: Colors.white,
-                    ),
-                    _buildBloodDonorCard(
-                      icon: Icons.hourglass_empty,
-                      title: 'Pending Calls',
-                      value: pending.toString(),
-                      color: Colors.orange,
-                      bgColor: Colors.white,
-                    ),
-                    _buildBloodDonorCard(
-                      icon: Icons.check_circle,
-                      title: 'Approved Calls',
-                      value: approved.toString(),
-                      color: AdminDashboardColors.success,
-                      bgColor: Colors.white,
-                    ),
-                  ],
-                );
-              },
-            ),
+                  return GridView.count(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _buildBloodDonorCard(
+                        icon: Icons.bloodtype,
+                        title: 'Active Donors',
+                        value: stats.activeDonors.toString(),
+                        color: AdminDashboardColors.accentColor,
+                        bgColor: Colors.white,
+                      ),
+                      _buildBloodDonorCard(
+                        icon: Icons.search,
+                        title: 'Top Searched',
+                        value: stats.mostSearchedCondition.length > 12
+                            ? '${stats.mostSearchedCondition.substring(0, 12)}...'
+                            : stats.mostSearchedCondition,
+                        color: AdminDashboardColors.warning,
+                        bgColor: Colors.white,
+                      ),
+                      _buildBloodDonorCard(
+                        icon: Icons.hourglass_empty,
+                        title: 'Pending Calls',
+                        value: pending.toString(),
+                        color: Colors.orange,
+                        bgColor: Colors.white,
+                      ),
+                      _buildBloodDonorCard(
+                        icon: Icons.check_circle,
+                        title: 'Approved Calls',
+                        value: approved.toString(),
+                        color: AdminDashboardColors.success,
+                        bgColor: Colors.white,
+                      ),
+                      _buildBloodDonorCard(
+                        icon: Icons.apartment,
+                        title: 'Total Hospitals',
+                        value: totalHospitals.toString(),
+                        color: Colors.blue,
+                        bgColor: Colors.white,
+                      ),
+                      _buildBloodDonorCard(
+                        icon: Icons.hourglass_empty,
+                        title: 'Pending Hospitals',
+                        value: pendingHospitals.toString(),
+                        color: Colors.orange,
+                        bgColor: Colors.white,
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
           );
         },
       ),
@@ -661,7 +705,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
+                                    color: Colors.black.withValues(alpha: 0.05),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -688,7 +732,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     borderRadius: BorderRadius.circular(10),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.05,
+                                        ),
                                         blurRadius: 8,
                                         offset: const Offset(0, 2),
                                       ),
@@ -786,7 +832,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => pageToNavigate),
-    );
+    ).then((_) {
+      // Reset menu selection to Dashboard when returning from any page
+      setState(() => _selectedMenuIndex = 0);
+    });
   }
 }
 
@@ -803,5 +852,18 @@ class AdminMenuItem {
     required this.description,
     required this.color,
     required this.lightColor,
+  });
+}
+
+/// Helper class to cache secondary data loaded in parallel
+class _SecondaryDataCache {
+  final models.UserGrowthData userGrowthData;
+  final models.EmergencyTrendData emergencyTrendData;
+  final Map<String, int> hospitalApprovalStats;
+
+  _SecondaryDataCache({
+    required this.userGrowthData,
+    required this.emergencyTrendData,
+    required this.hospitalApprovalStats,
   });
 }

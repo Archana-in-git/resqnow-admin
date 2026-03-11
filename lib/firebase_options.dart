@@ -61,3 +61,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'resqnow-12e6c.firebasestorage.app',
   );
 }
+

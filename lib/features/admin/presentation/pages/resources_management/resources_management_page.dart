@@ -72,9 +72,11 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
   }
 
   void _showErrorSnackbar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 
   @override
@@ -158,7 +160,7 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
           Stack(
             children: [
               Container(
-                height: 120,
+                height: 180,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.only(
@@ -318,35 +320,6 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
     );
   }
 
-  void _handleResourceAction(ResourceModel resource, String action) {
-    switch (action) {
-      case 'edit':
-        _showAddEditDialog(resource);
-        break;
-      case 'feature':
-        _toggleFeatured(resource, true);
-        break;
-      case 'unfeature':
-        _toggleFeatured(resource, false);
-        break;
-      case 'delete':
-        _showDeleteDialog(resource);
-        break;
-    }
-  }
-
-  void _toggleFeatured(ResourceModel resource, bool featured) async {
-    try {
-      await adminService.updateResource(resource.id, {'isFeatured': featured});
-      _loadResources();
-      _showErrorSnackbar(
-        'Resource ${featured ? 'featured' : 'unfeatured'} successfully',
-      );
-    } catch (e) {
-      _showErrorSnackbar('Error updating resource: $e');
-    }
-  }
-
   void _showAddEditDialog([ResourceModel? resource]) {
     final isEditing = resource != null;
     final nameController = TextEditingController(text: resource?.name ?? '');
@@ -503,6 +476,8 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
                   return;
                 }
 
+                Navigator.pop(context);
+
                 try {
                   final newResource = ResourceModel(
                     id: resource?.id ?? '',
@@ -549,7 +524,6 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
                   }
 
                   _loadResources();
-                  Navigator.pop(context);
                 } catch (e) {
                   _showErrorSnackbar('Error saving resource: $e');
                 }
@@ -577,13 +551,13 @@ class _ResourcesManagementPageState extends State<ResourcesManagementPage> {
           ),
           ElevatedButton(
             onPressed: () async {
+              Navigator.pop(context);
+
               try {
                 await adminService.deleteResource(resource.id);
-                Navigator.pop(context);
                 _loadResources();
                 _showErrorSnackbar('Resource deleted successfully');
               } catch (e) {
-                Navigator.pop(context);
                 _showErrorSnackbar('Error deleting resource: $e');
               }
             },

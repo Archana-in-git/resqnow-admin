@@ -277,6 +277,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
       text: category?.iconAsset ?? '',
     );
 
+    bool isLoading = false;
+
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -354,121 +356,300 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.isEmpty) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Name cannot be empty')),
-                    );
-                  }
-                  return;
-                }
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (nameController.text.isEmpty) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Name cannot be empty'),
+                            ),
+                          );
+                        }
+                        return;
+                      }
 
-                // Check if at least one image source is provided
-                final imageUrlInput = imageUrlController.text.trim();
-                final iconAssetInput = iconAssetController.text.trim();
-                if (imageUrlInput.isEmpty && iconAssetInput.isEmpty) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Please provide either a URL or local asset',
+                      // Check if at least one image source is provided
+                      final imageUrlInput = imageUrlController.text.trim();
+                      final iconAssetInput = iconAssetController.text.trim();
+                      if (imageUrlInput.isEmpty && iconAssetInput.isEmpty) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Please provide either a URL or local asset',
+                              ),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
+                      // Show loading state
+                      setDialogState(() {
+                        isLoading = true;
+                      });
+
+                      try {
+                        final aliases = aliasesController.text
+                            .split(',')
+                            .map((e) => e.trim())
+                            .where((e) => e.isNotEmpty)
+                            .toList();
+
+                        // Parse order - use next sequential number if not specified
+                        int orderValue;
+                        final orderText = orderController.text.trim();
+                        if (orderText.isEmpty) {
+                          // For new categories, auto-assign next order number
+                          if (!isEdit) {
+                            orderValue = _categories.isEmpty
+                                ? 1
+                                : (_categories
+                                          .map((c) => c.order ?? 0)
+                                          .reduce((a, b) => a > b ? a : b) +
+                                      1);
+                          } else {
+                            orderValue = category.order ?? 999;
+                          }
+                        } else {
+                          orderValue = int.tryParse(orderText) ?? 999;
+                        }
+
+                        // Build imageUrls list
+                        final List<String> imageUrls = imageUrlInput.isNotEmpty
+                            ? [imageUrlInput]
+                            : [];
+
+                        // Extract just filename from iconAsset (handles full paths)
+                        String? finalIconAsset;
+                        if (iconAssetInput.isNotEmpty) {
+                          // Get just the filename if a full path was provided
+                          finalIconAsset = iconAssetInput.contains('/')
+                              ? iconAssetInput.split('/').last
+                              : iconAssetInput;
+                        }
+
+                        if (isEdit) {
+                          final oldOrder = category.order ?? 999;
+                          final newOrder = orderValue;
+
+                          // Only process if order changed
+                          if (oldOrder != newOrder) {
+                            // Simple algorithm: treat as remove then insert
+                            // Step 1: Fill gap from removal (shift down all > oldOrder)
+                            final gapFillers = _categories
+                                .where(
+                                  (c) =>
+                                      c.id != category.id &&
+                                      c.order != null &&
+                                      c.order! > oldOrder,
+                                )
+                                .toList();
+
+                            for (final cat in gapFillers) {
+                              await _adminService.updateCategory(cat.id, {
+                                'order': (cat.order ?? 0) - 1,
+                              });
+                            }
+
+                            // Step 2: Make room for insertion (shift up all >= newOrder)
+                            final roomMakers = _categories
+                                .where(
+                                  (c) =>
+                                      c.id != category.id &&
+                                      c.order != null &&
+                                      c.order! >= newOrder &&
+                                      c.order! < oldOrder,
+                                )
+                                .toList();
+
+                            for (final cat in roomMakers) {
+                              await _adminService.updateCategory(cat.id, {
+                                'order': (cat.order ?? 0) + 1,
+                              });
+                            }
+                          }
+
+                          // Update the edited category to new order
+                          await _adminService.updateCategory(category.id, {
+                            'name': nameController.text.trim(),
+                            'order': orderValue,
+                            'aliases': aliases,
+                            'iconAsset': finalIconAsset,
+                            'imageUrls': imageUrls,
+                          });
+
+                          // Single setState to update all local list
+                          setState(() {
+                            if (oldOrder != newOrder) {
+                              // Update gap fillers (shifted down)
+                              final gapFillers = _categories
+                                  .where(
+                                    (c) =>
+                                        c.id != category.id &&
+                                        c.order != null &&
+                                        c.order! > oldOrder,
+                                  )
+                                  .toList();
+
+                              for (final cat in gapFillers) {
+                                final idx = _categories.indexWhere(
+                                  (c) => c.id == cat.id,
+                                );
+                                if (idx != -1) {
+                                  final oldCat = _categories[idx];
+                                  _categories[idx] = CategoryModel(
+                                    id: oldCat.id,
+                                    name: oldCat.name,
+                                    order: (oldCat.order ?? 0) - 1,
+                                    aliases: oldCat.aliases,
+                                    iconAsset: oldCat.iconAsset,
+                                    imageUrls: oldCat.imageUrls,
+                                  );
+                                }
+                              }
+
+                              // Update room makers (shifted up)
+                              final roomMakers = _categories
+                                  .where(
+                                    (c) =>
+                                        c.id != category.id &&
+                                        c.order != null &&
+                                        c.order! >= newOrder &&
+                                        c.order! < oldOrder,
+                                  )
+                                  .toList();
+
+                              for (final cat in roomMakers) {
+                                final idx = _categories.indexWhere(
+                                  (c) => c.id == cat.id,
+                                );
+                                if (idx != -1) {
+                                  final oldCat = _categories[idx];
+                                  _categories[idx] = CategoryModel(
+                                    id: oldCat.id,
+                                    name: oldCat.name,
+                                    order: (oldCat.order ?? 0) + 1,
+                                    aliases: oldCat.aliases,
+                                    iconAsset: oldCat.iconAsset,
+                                    imageUrls: oldCat.imageUrls,
+                                  );
+                                }
+                              }
+                            }
+
+                            // Update the edited category itself
+                            final index = _categories.indexWhere(
+                              (c) => c.id == category.id,
+                            );
+                            if (index != -1) {
+                              _categories[index] = CategoryModel(
+                                id: category.id,
+                                name: nameController.text.trim(),
+                                order: orderValue,
+                                aliases: aliases.isNotEmpty ? aliases : null,
+                                iconAsset: finalIconAsset,
+                                imageUrls: imageUrls,
+                              );
+                            }
+                          });
+
+                          if (mounted && dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Category updated successfully'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } else {
+                          // CREATE: Shift all >= newOrder up by 1
+                          final conflictingCategories = _categories
+                              .where(
+                                (c) =>
+                                    c.order != null && c.order! >= orderValue,
+                              )
+                              .toList();
+
+                          for (final cat in conflictingCategories) {
+                            await _adminService.updateCategory(cat.id, {
+                              'order': (cat.order ?? 0) + 1,
+                            });
+                          }
+
+                          final newCategory = CategoryModel(
+                            id: '',
+                            name: nameController.text.trim(),
+                            order: orderValue,
+                            aliases: aliases.isNotEmpty ? aliases : null,
+                            iconAsset: finalIconAsset,
+                            imageUrls: imageUrls,
+                          );
+                          await _adminService.createCategory(newCategory);
+
+                          // Update local list
+                          setState(() {
+                            for (final cat in conflictingCategories) {
+                              final idx = _categories.indexWhere(
+                                (c) => c.id == cat.id,
+                              );
+                              if (idx != -1) {
+                                final oldCat = _categories[idx];
+                                _categories[idx] = CategoryModel(
+                                  id: oldCat.id,
+                                  name: oldCat.name,
+                                  order: (oldCat.order ?? 0) + 1,
+                                  aliases: oldCat.aliases,
+                                  iconAsset: oldCat.iconAsset,
+                                  imageUrls: oldCat.imageUrls,
+                                );
+                              }
+                            }
+                          });
+
+                          if (mounted && dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Category created successfully'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+
+                          // Load categories in background
+                          _loadCategories();
+                        }
+                      } catch (e) {
+                        setDialogState(() {
+                          isLoading = false;
+                        });
+                        if (mounted && dialogContext.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: isLoading
+                  ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Theme.of(context).primaryColor,
                         ),
-                        backgroundColor: Colors.orange,
                       ),
-                    );
-                  }
-                  return;
-                }
-
-                try {
-                  final aliases = aliasesController.text
-                      .split(',')
-                      .map((e) => e.trim())
-                      .where((e) => e.isNotEmpty)
-                      .toList();
-
-                  // Parse order - use next sequential number if not specified
-                  int orderValue;
-                  final orderText = orderController.text.trim();
-                  if (orderText.isEmpty) {
-                    // For new categories, auto-assign next order number
-                    if (!isEdit) {
-                      orderValue = _categories.isEmpty
-                          ? 1
-                          : (_categories
-                                    .map((c) => c.order ?? 0)
-                                    .reduce((a, b) => a > b ? a : b) +
-                                1);
-                    } else {
-                      orderValue =
-                          999; // Keep existing for edits if not specified
-                    }
-                  } else {
-                    orderValue = int.tryParse(orderText) ?? 999;
-                  }
-
-                  // Build imageUrls list
-                  final List<String> imageUrls = imageUrlInput.isNotEmpty
-                      ? [imageUrlInput]
-                      : [];
-
-                  // Extract just filename from iconAsset (handles full paths)
-                  String? finalIconAsset;
-                  if (iconAssetInput.isNotEmpty) {
-                    // Get just the filename if a full path was provided
-                    finalIconAsset = iconAssetInput.contains('/')
-                        ? iconAssetInput.split('/').last
-                        : iconAssetInput;
-                  }
-
-                  if (isEdit) {
-                    await _adminService.updateCategory(category.id, {
-                      'name': nameController.text.trim(),
-                      'order': orderValue,
-                      'aliases': aliases,
-                      'iconAsset': finalIconAsset,
-                      'imageUrls': imageUrls,
-                    });
-                  } else {
-                    await _adminService.createCategory(
-                      CategoryModel(
-                        id: '',
-                        name: nameController.text.trim(),
-                        order: orderValue,
-                        aliases: aliases.isNotEmpty ? aliases : null,
-                        iconAsset: finalIconAsset,
-                        imageUrls: imageUrls,
-                      ),
-                    );
-                  }
-                  if (mounted && dialogContext.mounted) {
-                    Navigator.pop(dialogContext);
-                    await _loadCategories();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          isEdit
-                              ? 'Category updated successfully'
-                              : 'Category created successfully',
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted && dialogContext.mounted) {
-                    Navigator.pop(dialogContext);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: Text(isEdit ? 'Update' : 'Add'),
+                    )
+                  : Text(isEdit ? 'Update' : 'Add'),
             ),
           ],
         ),
@@ -492,16 +673,46 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
           ElevatedButton(
             onPressed: () async {
               try {
+                // Get the order of the category being deleted
+                final deletedOrder = category.order;
+
+                // Delete the category
                 await _adminService.deleteCategory(category.id);
+
                 if (mounted && deleteDialogContext.mounted) {
                   Navigator.pop(deleteDialogContext);
-                  await _loadCategories();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Category deleted successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+
+                  // Get all categories that need to be re-ordered
+                  final categoriesToReorganize = _categories
+                      .where(
+                        (c) =>
+                            c.id != category.id &&
+                            c.order != null &&
+                            deletedOrder != null &&
+                            c.order! > deletedOrder,
+                      )
+                      .toList();
+
+                  // Update all affected categories - shift them up by 1
+                  for (final cat in categoriesToReorganize) {
+                    await _adminService.updateCategory(cat.id, {
+                      'order': (cat.order ?? 0) - 1,
+                    });
+                  }
+
+                  // Update local list
+                  setState(() {
+                    _categories.removeWhere((c) => c.id == category.id);
+                  });
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Category deleted successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
                 }
               } catch (e) {
                 if (mounted && deleteDialogContext.mounted) {

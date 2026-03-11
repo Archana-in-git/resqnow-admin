@@ -68,3 +68,4 @@ class AdminSessionEntity extends Equatable {
   @override
   List<Object?> get props => [uid, email, role, profileImageUrl, loginTime];
 }
+

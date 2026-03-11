@@ -32,8 +32,6 @@ class CategoryModel {
       displayOrder: order ?? 999,
       isVisible: true,
       searchAliases: aliases,
-      createdAt: DateTime.now(),
-      updatedAt: null,
     );
   }
 
@@ -81,14 +79,6 @@ class EmergencyNumberModel {
       id: id,
       serviceName: name,
       phoneNumber: number,
-      category: '',
-      description: null,
-      areaOfCoverage: null,
-      operatingHours: null,
-      priority: 1,
-      isActive: true,
-      createdAt: DateTime.now(),
-      updatedAt: null,
     );
   }
 
@@ -225,9 +215,7 @@ class ConditionModel {
   final String severity;
   final List<String> imageUrls;
   final List<String> firstAidDescription;
-  final List<String> doNotDo;
   final String? videoUrl;
-  final List<Map<String, dynamic>> requiredKits;
   final List<Map<String, dynamic>> faqs;
   final List<String> doctorType;
   final String? hospitalLocatorLink;
@@ -241,9 +229,7 @@ class ConditionModel {
     required this.severity,
     required this.imageUrls,
     required this.firstAidDescription,
-    required this.doNotDo,
     this.videoUrl,
-    required this.requiredKits,
     required this.faqs,
     required this.doctorType,
     this.hospitalLocatorLink,
@@ -259,9 +245,7 @@ class ConditionModel {
       severity: severity,
       imageUrls: imageUrls,
       firstAidDescription: firstAidDescription,
-      doNotDo: doNotDo,
       videoUrl: videoUrl,
-      requiredKits: requiredKits,
       faqs: faqs,
       doctorType: doctorType,
       hospitalLocatorLink: hospitalLocatorLink,
@@ -299,10 +283,6 @@ class ConditionModel {
     }
 
     try {
-      print(
-        '🔍 Deserializing condition: name=${json['name']}, severity=${json['severity']}',
-      );
-
       // Safe list conversion for strings
       List<String> toStringList(dynamic value) {
         try {
@@ -315,7 +295,6 @@ class ConditionModel {
           }
           return [];
         } catch (e) {
-          print('⚠️ Error converting to string list: $e');
           return [];
         }
       }
@@ -327,12 +306,11 @@ class ConditionModel {
           if (value is List) {
             return value
                 .whereType<Map>()
-                .map((item) => Map<String, dynamic>.from(item as Map))
+                .map((item) => Map<String, dynamic>.from(item))
                 .toList();
           }
           return [];
         } catch (e) {
-          print('⚠️ Error converting to map list: $e');
           return [];
         }
       }
@@ -345,9 +323,7 @@ class ConditionModel {
         firstAidDescription: toStringList(
           json['firstAidDescription'] ?? json['firstAidSteps'],
         ),
-        doNotDo: toStringList(json['doNotDo']),
         videoUrl: json['videoUrl'] as String?,
-        requiredKits: toMapList(json['requiredKits']),
         faqs: toMapList(json['faqs']),
         doctorType: toStringList(json['doctorType'] ?? json['doctorTypes']),
         hospitalLocatorLink: json['hospitalLocatorLink'] as String?,
@@ -357,10 +333,7 @@ class ConditionModel {
             ? parseDateTime(json['updatedAt'])
             : null,
       );
-    } catch (e, stackTrace) {
-      print('❌ Error deserializing condition: $e');
-      print('Data: $json');
-      print('Stack: $stackTrace');
+    } catch (e) {
       rethrow;
     }
   }
@@ -372,9 +345,7 @@ class ConditionModel {
       'severity': severity,
       'imageUrls': imageUrls,
       'firstAidDescription': firstAidDescription,
-      'doNotDo': doNotDo,
       'videoUrl': videoUrl,
-      'requiredKits': requiredKits,
       'faqs': faqs,
       'doctorType': doctorType,
       'hospitalLocatorLink': hospitalLocatorLink,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:resqnow_admin/features/admin/data/models/blood_donor_model.dart';
 import 'package:resqnow_admin/core/constants/admin_constants.dart';
 import 'package:resqnow_admin/core/services/admin_service.dart';
@@ -25,6 +26,8 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
   List<BloodDonorModel> _allDonors = [];
   List<BloodDonorModel> _filteredDonors = [];
   bool _isLoading = false;
+  final int _loadedCount = 50;
+  Future<void>? _filterDebounceTimer;
 
   @override
   void initState() {
@@ -34,13 +37,13 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
       auth: FirebaseAuth.instance,
     );
     _loadDonors();
-    _searchController.addListener(_applyFilters);
+    _searchController.addListener(_applyFiltersDebounced);
   }
 
   Future<void> _loadDonors() async {
     setState(() => _isLoading = true);
     try {
-      final donors = await _adminService.getAllBloodDonors(limit: 100);
+      final donors = await _adminService.getAllBloodDonors(limit: _loadedCount);
       setState(() {
         _allDonors = donors;
         _filteredDonors = donors;
@@ -91,6 +94,18 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
             matchesTown;
       }).toList();
     });
+  }
+
+  void _applyFiltersDebounced() {
+    _filterDebounceTimer?.ignore();
+    _filterDebounceTimer = Future.delayed(
+      const Duration(milliseconds: 300),
+      () {
+        if (mounted) {
+          _applyFilters();
+        }
+      },
+    );
   }
 
   @override
@@ -452,7 +467,16 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
         'isSuspended': true,
         'suspensionReason': reason,
       });
-      _loadDonors();
+      setState(() {
+        final index = _allDonors.indexWhere((d) => d.uid == donor.uid);
+        if (index != -1) {
+          _allDonors[index] = _allDonors[index].copyWith(
+            isSuspended: true,
+            suspensionReason: reason,
+          );
+        }
+      });
+      _applyFilters();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -476,7 +500,16 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
         'isSuspended': false,
         'suspensionReason': null,
       });
-      _loadDonors();
+      setState(() {
+        final index = _allDonors.indexWhere((d) => d.uid == donor.uid);
+        if (index != -1) {
+          _allDonors[index] = _allDonors[index].copyWith(
+            isSuspended: false,
+            suspensionReason: null,
+          );
+        }
+      });
+      _applyFilters();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -535,7 +568,10 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
   Future<void> _deleteDonor(BloodDonorModel donor) async {
     try {
       await _adminService.deleteDonor(donor.uid);
-      _loadDonors();
+      setState(() {
+        _allDonors.removeWhere((d) => d.uid == donor.uid);
+      });
+      _applyFilters();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -555,7 +591,8 @@ class _BloodDonorManagementPageState extends State<BloodDonorManagementPage> {
 
   @override
   void dispose() {
-    _searchController.removeListener(_applyFilters);
+    _searchController.removeListener(_applyFiltersDebounced);
+    _filterDebounceTimer?.ignore();
     _searchController.dispose();
     super.dispose();
   }

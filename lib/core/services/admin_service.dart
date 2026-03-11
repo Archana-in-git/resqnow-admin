@@ -82,7 +82,6 @@ class AdminService {
       }
 
       final snapshot = await query.get();
-      print('DEBUG: Fetched ${snapshot.docs.length} users from Firestore');
 
       List<AdminUserModel> users = [];
       for (var doc in snapshot.docs) {
@@ -91,16 +90,11 @@ class AdminService {
           final user = AdminUserModel.fromJson({...userData, 'uid': doc.id});
           users.add(user);
         } catch (e) {
-          print('ERROR: Failed to parse user ${doc.id}: $e');
-          print('  Data: ${doc.data()}');
           // Continue processing other users
         }
       }
-
-      print('DEBUG: Successfully parsed ${users.length} users');
       return users;
     } catch (e) {
-      print('ERROR: getAllUsers failed: $e');
       throw Exception('Failed to fetch users: $e');
     }
   }
@@ -375,35 +369,72 @@ class AdminService {
   }
 
   /// Create category with auto-shifting of order values
+  /// ✅ CREATES LINKED MEDICAL CONDITION DOCUMENT (1-to-1 relationship)
   /// When creating a category with order=X, all categories with order≥X are incremented by 1
   Future<String> createCategory(CategoryModel category) async {
     try {
       final orderValue = category.order ?? 999;
+      late String categoryId;
 
-      // Shift existing categories if order conflicts
-      if (orderValue < 999) {
-        final conflictingDocs = await firestore
-            .collection(categoriesCollection)
-            .where('order', isGreaterThanOrEqualTo: orderValue)
-            .get();
+      // Use a transaction to ensure both documents are created atomically
+      await firestore.runTransaction((transaction) async {
+        // Step 1: Shift existing categories if order conflicts
+        if (orderValue < 999) {
+          final conflictingDocs = await firestore
+              .collection(categoriesCollection)
+              .where('order', isGreaterThanOrEqualTo: orderValue)
+              .get();
 
-        // Increment order for all conflicting categories
-        for (var doc in conflictingDocs.docs) {
-          final currentOrder = doc.get('order') as int? ?? 999;
-          await firestore.collection(categoriesCollection).doc(doc.id).update({
-            'order': currentOrder + 1,
-          });
+          // Increment order for all conflicting categories
+          for (var doc in conflictingDocs.docs) {
+            final currentOrder = doc.get('order') as int? ?? 999;
+            transaction.update(
+              firestore.collection(categoriesCollection).doc(doc.id),
+              {'order': currentOrder + 1},
+            );
+          }
         }
-      }
 
-      // Now create the new category
-      final docRef = await firestore
-          .collection(categoriesCollection)
-          .add(category.toJson());
-      return docRef.id;
+        // Step 2: Create the new category document
+        final categoryRef = firestore.collection(categoriesCollection).doc();
+        categoryId = categoryRef.id;
+        transaction.set(categoryRef, category.toJson());
+
+        // Step 3: Create linked empty medical condition document (1-to-1 relationship)
+        // This ensures that when users click the category, data will be available
+        final emptyCondition = _createEmptyCondition(
+          categoryId: categoryId,
+          conditionName: category.name,
+        );
+        final conditionRef = firestore.collection(conditionsCollection).doc();
+        transaction.set(conditionRef, emptyCondition);
+      });
+
+      return categoryId;
     } catch (e) {
       throw Exception('Failed to create category: $e');
     }
+  }
+
+  /// Helper: Create an empty medical condition document linked to a category
+  /// This maintains the strict 1-to-1 relationship
+  Map<String, dynamic> _createEmptyCondition({
+    required String categoryId,
+    required String conditionName,
+  }) {
+    return {
+      'categoryId': categoryId, // Single category reference (1-to-1)
+      'name': conditionName, // Pre-filled with category name
+      'severity': 'low',
+      'imageUrls': [],
+      'firstAidDescription': [],
+      'videoUrl': '',
+      'faqs': [],
+      'doctorType': [],
+      'hospitalLocatorLink': '',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
   }
 
   /// Update category with auto-shifting of order values
@@ -668,22 +699,10 @@ class AdminService {
   /// Get all conditions
   Future<List<ConditionModel>> getAllConditions({int limit = 20}) async {
     try {
-      print(
-        '🔍 AdminService: Fetching conditions from collection: "$conditionsCollection"',
-      );
       Query query = firestore.collection(conditionsCollection);
-
-      print('📊 AdminService: Executing query with limit: $limit');
       final snapshot = await query.limit(limit).get();
 
-      print(
-        '✅ AdminService: Got snapshot with ${snapshot.docs.length} documents',
-      );
-
       if (snapshot.docs.isEmpty) {
-        print(
-          '⚠️ AdminService: No documents found in collection "$conditionsCollection"',
-        );
         return [];
       }
 
@@ -691,24 +710,15 @@ class AdminService {
       for (int i = 0; i < snapshot.docs.length; i++) {
         try {
           final doc = snapshot.docs[i];
-          print(
-            '📄 Document $i: ID=${doc.id}, data keys=${(doc.data() as Map<String, dynamic>).keys.toList()}',
-          );
           final condition = ConditionModel.fromJson({
             ...doc.data() as Map<String, dynamic>,
             'id': doc.id,
           });
           conditions.add(condition);
-          print('   ✅ Parsed: ${condition.name}');
-        } catch (e, st) {
-          print('   ❌ Error parsing document: $e');
-          print('   Stack: $st');
+        } catch (e) {
+          // Continue processing other documents
         }
       }
-
-      print(
-        '📋 AdminService: Successfully parsed ${conditions.length} conditions',
-      );
 
       // Sort by createdAt descending (most recent first) if available
       conditions.sort((a, b) {
@@ -722,12 +732,121 @@ class AdminService {
         return 0;
       });
 
-      print('✨ AdminService: Returning ${conditions.length} conditions');
       return conditions;
-    } catch (e, stackTrace) {
-      print('❌ AdminService: Error fetching conditions: $e');
-      print('📍 Stack trace: $stackTrace');
+    } catch (e) {
       throw Exception('Failed to fetch conditions: $e');
+    }
+  }
+
+  /// Get conditions for a specific category
+  /// Handles 3 linking strategies:
+  /// 1. New format: categories array field contains categoryId
+  /// 2. Old format: categoryId field equals categoryId
+  /// 3. 1-to-1 ID match: condition document ID equals categoryId
+  Future<List<ConditionModel>> getConditionsByCategory(
+    String categoryId,
+  ) async {
+    try {
+      // Query 1: New conditions with 'categories' array field
+      final newSnapshot = await firestore
+          .collection(conditionsCollection)
+          .where('categories', arrayContains: categoryId)
+          .get();
+
+      // Query 2: Old conditions with 'categoryId' single field (backward compatibility)
+      final oldSnapshot = await firestore
+          .collection(conditionsCollection)
+          .where('categoryId', isEqualTo: categoryId)
+          .get();
+
+      // Combine results and remove duplicates
+      final allDocs = <String, DocumentSnapshot<Map<String, dynamic>>>{};
+
+      for (var doc in newSnapshot.docs) {
+        allDocs[doc.id] = doc;
+      }
+
+      for (var doc in oldSnapshot.docs) {
+        allDocs[doc.id] = doc;
+      }
+
+      // Query 3: 1-to-1 ID match - condition document with ID matching categoryId
+      try {
+        final idMatchDoc = await firestore
+            .collection(conditionsCollection)
+            .doc(categoryId)
+            .get();
+
+        if (idMatchDoc.exists) {
+          allDocs[idMatchDoc.id] = idMatchDoc;
+        }
+      } catch (e) {
+        // Continue without this match
+      }
+
+      List<ConditionModel> conditions = [];
+      for (var doc in allDocs.values) {
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          final condition = ConditionModel.fromJson({...data, 'id': doc.id});
+          conditions.add(condition);
+        } catch (e) {
+          // Continue processing other documents
+        }
+      }
+
+      return conditions;
+    } catch (e) {
+      throw Exception('Failed to fetch conditions by category: $e');
+    }
+  }
+
+  /// ✅ SAFELY GET MEDICAL CONDITION BY CATEGORYID (1-to-1 relationship)
+  /// Returns the single medical condition linked to a category
+  /// Returns null if no condition exists (should not happen if 1-to-1 enforced)
+  /// [categoryId] - The category ID to search for
+  Future<ConditionModel?> getConditionByCategoryId(String categoryId) async {
+    try {
+      // Query: Single condition with 'categoryId' field (1-to-1 relationship)
+      final snapshot = await firestore
+          .collection(conditionsCollection)
+          .where('categoryId', isEqualTo: categoryId)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
+
+      final doc = snapshot.docs.first;
+      final condition = ConditionModel.fromJson({...doc.data(), 'id': doc.id});
+
+      return condition;
+    } catch (e) {
+      throw Exception('Failed to fetch condition for category $categoryId: $e');
+    }
+  }
+
+  /// ✅ CREATE MISSING MEDICAL CONDITION FOR CATEGORY (Emergency fix)
+  /// Use this if a category exists but its linked medical condition was deleted
+  /// Maintains 1-to-1 relationship by auto-creating the missing document
+  Future<String> createMissingConditionForCategory(
+    String categoryId,
+    String categoryName,
+  ) async {
+    try {
+      final emptyCondition = _createEmptyCondition(
+        categoryId: categoryId,
+        conditionName: categoryName,
+      );
+
+      final docRef = await firestore
+          .collection(conditionsCollection)
+          .add(emptyCondition);
+
+      return docRef.id;
+    } catch (e) {
+      throw Exception('Failed to create condition for category: $e');
     }
   }
 
@@ -735,10 +854,7 @@ class AdminService {
   Future<String> createCondition(ConditionModel condition) async {
     try {
       // If ConditionModel does not have toJson, use a fallback:
-      final Map<String, dynamic> data =
-          condition.toJson != null
-          ? condition.toJson()
-          : conditionToMap(condition);
+      final Map<String, dynamic> data = condition.toJson();
       final docRef = await firestore.collection(conditionsCollection).add(data);
       return docRef.id;
     } catch (e) {
@@ -814,7 +930,6 @@ class AdminService {
             .get();
         activeUsersCount = activeUsersSnap.count ?? 0;
       } catch (e) {
-        print('Error fetching active users: $e');
         activeUsersCount = 0;
       }
 
@@ -855,7 +970,6 @@ class AdminService {
           }
         }).length;
       } catch (e) {
-        print('Error fetching new users: $e');
         newUsersLastWeek = 0;
         activeNewUsersLastWeek = 0;
       }
@@ -895,6 +1009,18 @@ class AdminService {
         emergencyClicksToday = 0;
       }
 
+      // Total Emergency Clicks Initiated (All-time)
+      int totalEmergencyClicksInitiated = 0;
+      try {
+        final totalEmergencySnap = await firestore
+            .collection('emergency_logs')
+            .count()
+            .get();
+        totalEmergencyClicksInitiated = totalEmergencySnap.count ?? 0;
+      } catch (e) {
+        totalEmergencyClicksInitiated = 0;
+      }
+
       // Most Searched Condition
       String mostSearchedCondition = 'N/A';
       final sevenDaysAgoForSearch = DateTime.now()
@@ -926,7 +1052,6 @@ class AdminService {
         }
       } catch (e) {
         // Collection might not exist
-        print('Error fetching search logs: $e');
       }
 
       return AnalyticsStats(
@@ -937,6 +1062,7 @@ class AdminService {
         activeNewUsersLastWeek: activeNewUsersLastWeek,
         activeDonors: activeDonors,
         emergencyClicksToday: emergencyClicksToday,
+        totalEmergencyClicksInitiated: totalEmergencyClicksInitiated,
         mostSearchedCondition: mostSearchedCondition,
         userGrowthPercent: totalUsers > 0
             ? (newUsersLastWeek / totalUsers * 100)
@@ -989,7 +1115,6 @@ class AdminService {
 
       return UserGrowthData(months: monthLabels, userCounts: userCounts);
     } catch (e) {
-      print('Error fetching user growth data: $e');
       // Return empty chart on error instead of throwing
       return UserGrowthData(months: [], userCounts: []);
     }
@@ -1188,7 +1313,6 @@ class AdminService {
         emergencyCountToday = emergencyCountSnap.count ?? 0;
       } catch (e) {
         // Collection might not exist - continue without data
-        print('Note: emergency_logs collection not found or empty');
       }
 
       return RealTimeActivityPanel(
@@ -1220,12 +1344,6 @@ class AdminService {
     String? targetDistrict,
   }) async {
     try {
-      print('📤 Sending notification to users...');
-      print('   Title: $title');
-      print('   Message: $message');
-      print('   Recipient Type: $recipientType');
-      print('   Target District: $targetDistrict');
-
       // Build query based on recipient type
       Query query = firestore.collection(usersCollection);
 
@@ -1245,10 +1363,8 @@ class AdminService {
 
       // Fetch matching users
       final userDocs = await query.get();
-      print('✅ Found ${userDocs.docs.length} matching users');
 
       if (userDocs.docs.isEmpty) {
-        print('⚠️ No matching users found for this notification');
         return;
       }
 
@@ -1272,14 +1388,10 @@ class AdminService {
           'recipientType': recipientType,
           'targetDistrict': targetDistrict,
         });
-
-        print('📬 Created notification for user: $userId');
       }
 
       await batch.commit();
-      print('✅ All ${userDocs.docs.length} notifications created successfully');
     } catch (e) {
-      print('❌ Error sending notification: $e');
       throw Exception('Failed to send notification: $e');
     }
   }
@@ -1643,6 +1755,13 @@ class AdminService {
                 .get();
             final emergencyClicksToday = emergencyClicksSnap.count ?? 0;
 
+            final totalEmergencyClicksSnap = await firestore
+                .collection('emergency_logs')
+                .count()
+                .get();
+            final totalEmergencyClicksInitiated =
+                totalEmergencyClicksSnap.count ?? 0;
+
             String mostSearchedCondition = 'N/A';
             final sevenDaysAgoForSearch = DateTime.now()
                 .subtract(Duration(days: 7))
@@ -1673,7 +1792,7 @@ class AdminService {
                 }
               }
             } catch (e) {
-              print('Error fetching search logs: $e');
+              // Continue if search logs not found
             }
 
             return AnalyticsStats(
@@ -1684,6 +1803,7 @@ class AdminService {
               activeNewUsersLastWeek: activeNewUsersLastWeek,
               activeDonors: activeDonors,
               emergencyClicksToday: emergencyClicksToday,
+              totalEmergencyClicksInitiated: totalEmergencyClicksInitiated,
               mostSearchedCondition: mostSearchedCondition,
               userGrowthPercent: totalUsers > 0
                   ? (newUsersLastWeek / totalUsers * 100)
@@ -1695,7 +1815,6 @@ class AdminService {
                   : 0,
             );
           } catch (e) {
-            print('Error in analytics stream: $e');
             return AnalyticsStats.empty();
           }
         });
@@ -1751,9 +1870,44 @@ class AdminService {
               'rejected': rejectedSnapshot.count ?? 0,
             };
           } catch (e) {
-            print('Error in call request stats stream: $e');
             return {'total': 0, 'pending': 0, 'approved': 0, 'rejected': 0};
           }
         });
+  }
+
+  /// ============ Hospital Approval Management ============
+
+  /// Get hospital approval statistics
+  Future<Map<String, int>> getHospitalApprovalStats() async {
+    try {
+      final totalSnapshot = await firestore
+          .collection('hospitals')
+          .count()
+          .get();
+      final pendingSnapshot = await firestore
+          .collection('hospitals')
+          .where('status', isEqualTo: 'pending')
+          .count()
+          .get();
+      final approvedSnapshot = await firestore
+          .collection('hospitals')
+          .where('status', isEqualTo: 'approved')
+          .count()
+          .get();
+      final rejectedSnapshot = await firestore
+          .collection('hospitals')
+          .where('status', isEqualTo: 'rejected')
+          .count()
+          .get();
+
+      return {
+        'total': totalSnapshot.count ?? 0,
+        'pending': pendingSnapshot.count ?? 0,
+        'approved': approvedSnapshot.count ?? 0,
+        'rejected': rejectedSnapshot.count ?? 0,
+      };
+    } catch (e) {
+      throw Exception('Failed to fetch hospital approval stats: $e');
+    }
   }
 }

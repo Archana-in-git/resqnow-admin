@@ -113,7 +113,6 @@ class AdminAuthController with ChangeNotifier {
         }
       } catch (e) {
         // If blocked_emails check fails, that's okay - we already checked accountStatus
-        print('Warning: Could not verify blocked_emails: $e');
       }
 
       return false;
