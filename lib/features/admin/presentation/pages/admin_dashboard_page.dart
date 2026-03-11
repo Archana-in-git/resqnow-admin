@@ -697,29 +697,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       ),
                       Row(
                         children: [
-                          GestureDetector(
-                            onTap: _refreshAllData,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              padding: const EdgeInsets.all(8),
-                              child: Icon(
-                                Icons.refresh,
-                                size: 20,
-                                color: AdminDashboardColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
                           Consumer<AdminAuthController>(
                             builder: (context, authController, _) {
                               return PopupMenuButton<String>(
@@ -757,15 +734,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                   ),
                                 ),
                                 itemBuilder: (context) => [
-                                  const PopupMenuItem<String>(
-                                    value: 'profile',
-                                    child: Text('Profile'),
-                                  ),
-                                  const PopupMenuItem<String>(
-                                    value: 'settings',
-                                    child: Text('Settings'),
-                                  ),
-                                  const PopupMenuDivider(),
                                   const PopupMenuItem<String>(
                                     value: 'logout',
                                     child: Text('Logout'),

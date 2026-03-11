@@ -63,6 +63,20 @@ service cloud.firestore {
     }
 
     // =================================================
+    // 🏢 DEPARTMENTS
+    // =================================================
+    match /departments/{departmentId} {
+
+      allow read: if isAuthenticated();
+
+      allow create, update: if isAuthenticated() &&
+                            request.resource.data.hospitalId == request.auth.uid;
+
+      allow delete: if isAuthenticated() &&
+                    resource.data.hospitalId == request.auth.uid;
+    }
+
+    // =================================================
     // 📅 APPOINTMENTS
     // =================================================
     match /appointments/{appointmentId} {
